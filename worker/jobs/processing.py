@@ -1,4 +1,4 @@
-import base
+from worker.jobs.base import BaseJob
 import asyncio
 from datetime import datetime, UTC
 import logging
@@ -7,7 +7,7 @@ import random
 logger = logging.getLogger(__name__)
 
 
-class Processing(base.BaseJob):
+class Processing(BaseJob):
 
     async def execute(self) -> dict:
         operation = self.parameters.get("operation", "transform")

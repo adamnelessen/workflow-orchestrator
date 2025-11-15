@@ -8,7 +8,11 @@ from coordinator.api import workflows, workers
 from contextlib import asynccontextmanager
 import asyncio
 import logging
+import os
 
+# Use LOG_LEVEL from environment, default to INFO
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
 logger = logging.getLogger(__name__)
 
 
@@ -83,4 +87,4 @@ async def health(state: StateManager = Depends(state_manager)):
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("coordinator.main:app", host="0.0.0.0", port=8000, reload=True)

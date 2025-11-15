@@ -1,4 +1,4 @@
-import base
+from worker.jobs.base import BaseJob
 import asyncio
 from datetime import datetime, UTC
 import logging
@@ -6,7 +6,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class Integration(base.BaseJob):
+class Integration(BaseJob):
 
     async def execute(self) -> dict:
         endpoint = self.parameters.get("endpoint", "external-api")

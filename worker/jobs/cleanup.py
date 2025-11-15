@@ -1,4 +1,4 @@
-import base
+from worker.jobs.base import BaseJob
 import asyncio
 from datetime import datetime, UTC
 import logging
@@ -6,7 +6,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class Cleanup(base.BaseJob):
+class Cleanup(BaseJob):
 
     async def execute(self) -> dict:
         target = self.parameters.get("target", "temp-files")

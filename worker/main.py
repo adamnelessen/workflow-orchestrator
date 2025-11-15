@@ -7,11 +7,13 @@ import signal
 import uuid
 from typing import List, Optional
 from datetime import datetime, UTC
-from jobs import validation, processing, integration, cleanup
+from worker.jobs import validation, processing, integration, cleanup
 import websockets
 from websockets.exceptions import ConnectionClosed
 
-logging.basicConfig(level=logging.INFO)
+# Use LOG_LEVEL from environment, default to INFO
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
 logger = logging.getLogger(__name__)
 
 
@@ -27,7 +29,7 @@ class WorkerNode:
             "validation", "processing", "integration", "cleanup"
         ]
         self.coordinator_url = os.getenv("COORDINATOR_URL",
-                                         "ws://coordinator:8000/ws")
+                                         "ws://coordinator:8000/workers")
         self.websocket = None
         self.running = True
         self.current_job = None

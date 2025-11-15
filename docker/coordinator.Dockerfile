@@ -12,5 +12,8 @@ COPY . .
 # Expose the coordinator port
 EXPOSE 8000
 
+# Set environment variables
+ENV LOG_LEVEL=INFO
+
 # Run the coordinator service
 CMD ["python", "-u", "-m", "coordinator.main"]

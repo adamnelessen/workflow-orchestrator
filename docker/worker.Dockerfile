@@ -10,7 +10,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Set environment variables
-ENV COORDINATOR_URL=ws://coordinator:8000/ws
 ENV LOG_LEVEL=INFO
 
 # Run the worker

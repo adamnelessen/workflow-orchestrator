@@ -6,6 +6,7 @@ from coordinator.core.scheduler import Scheduler
 # Singletons - initialized once on startup
 _worker_registry = None
 _scheduler = None
+_workflow_engine = None
 
 
 def get_worker_registry() -> WorkerRegistry:
@@ -24,3 +25,13 @@ def get_scheduler() -> Scheduler:
         state = state_manager()
         _scheduler = Scheduler(state)
     return _scheduler
+
+
+def get_workflow_engine():
+    """Get or create WorkflowEngine singleton"""
+    from coordinator.core.workflow_engine import WorkflowEngine
+
+    global _workflow_engine
+    if _workflow_engine is None:
+        _workflow_engine = WorkflowEngine(get_worker_registry())
+    return _workflow_engine

@@ -5,8 +5,7 @@ import logging
 
 from shared.schemas import Worker
 from coordinator.core.state_manager import StateManager, state_manager
-from coordinator.core.dependencies import get_worker_registry
-from coordinator.core.workflow_engine import get_workflow_engine
+from coordinator.core.dependencies import get_worker_registry, get_workflow_engine
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +23,10 @@ async def websocket_endpoint(websocket: WebSocket, worker_id: str):
     """WebSocket endpoint for worker connections."""
     # Note: WebSocket endpoints can't use Depends(), so we get dependencies directly
     state = state_manager()
-    ws_manager = get_worker_registry()
+    worker_registry = get_worker_registry()
     workflow_engine = get_workflow_engine()
 
-    await ws_manager.connect(websocket, worker_id)
+    await worker_registry.connect(websocket, worker_id)
 
     try:
         while True:
@@ -38,7 +37,7 @@ async def websocket_endpoint(websocket: WebSocket, worker_id: str):
             if message_type == "register":
                 # Worker registration
                 capabilities = data.get("capabilities", [])
-                await ws_manager.register_worker(worker_id, capabilities)
+                await worker_registry.register_worker(worker_id, capabilities)
 
                 # Send acknowledgment
                 await websocket.send_json({
@@ -49,7 +48,7 @@ async def websocket_endpoint(websocket: WebSocket, worker_id: str):
 
             elif message_type == "heartbeat":
                 # Worker heartbeat
-                await ws_manager.handle_heartbeat(worker_id)
+                await worker_registry.handle_heartbeat(worker_id)
                 await websocket.send_json({
                     "type":
                     "heartbeat_ack",
@@ -64,11 +63,11 @@ async def websocket_endpoint(websocket: WebSocket, worker_id: str):
                 result = data.get("result", {})
 
                 if status == "completed":
-                    await ws_manager.handle_job_completion(
+                    await worker_registry.handle_job_completion(
                         worker_id, job_id, result)
                     await workflow_engine.handle_job_completion(job_id, result)
                 elif status == "failed":
-                    await ws_manager.handle_job_completion(
+                    await worker_registry.handle_job_completion(
                         worker_id, job_id, result)
                     await workflow_engine.handle_job_failure(job_id, result)
                 else:
@@ -88,8 +87,8 @@ async def websocket_endpoint(websocket: WebSocket, worker_id: str):
                 )
 
     except WebSocketDisconnect:
-        await ws_manager.disconnect(worker_id)
+        await worker_registry.disconnect(worker_id)
         logger.info(f"Worker {worker_id} disconnected")
     except Exception as e:
         logger.error(f"Error handling worker {worker_id}: {e}")
-        await ws_manager.disconnect(worker_id)
+        await worker_registry.disconnect(worker_id)

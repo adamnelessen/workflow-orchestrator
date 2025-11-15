@@ -1,43 +1,48 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import List
-from datetime import datetime
+from datetime import UTC, datetime
 
 from shared.schemas import Workflow
-from coordinator.core.storage import workflows
+from coordinator.core.state_manager import StateManager, state_manager
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 
 @router.post("", response_model=Workflow)
-async def create_workflow(workflow: Workflow):
+async def create_workflow(workflow: Workflow,
+                          state: StateManager = Depends(state_manager)):
     """Create a new workflow"""
-    if workflow.id in workflows:
+    if state.get_workflow(workflow.id) is not None:
         raise HTTPException(status_code=400, detail="Workflow already exists")
 
-    workflow.created_at = datetime.now()
-    workflow.updated_at = datetime.now()
-    workflows[workflow.id] = workflow
+    workflow.created_at = datetime.now(UTC)
+    workflow.updated_at = datetime.now(UTC)
+    state.add_workflow(workflow)
     return workflow
 
 
 @router.get("", response_model=List[Workflow])
-async def list_workflows():
+async def list_workflows(state: StateManager = Depends(state_manager)):
     """List all workflows"""
-    return list(workflows.values())
+    return state.list_workflows()
 
 
 @router.get("/{workflow_id}", response_model=Workflow)
-async def get_workflow(workflow_id: str):
+async def get_workflow(workflow_id: str,
+                       state: StateManager = Depends(state_manager)):
     """Get a specific workflow"""
-    if workflow_id not in workflows:
+    workflow = state.get_workflow(workflow_id)
+    if workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    return workflows[workflow_id]
+    return workflow
 
 
 @router.delete("/{workflow_id}")
-async def delete_workflow(workflow_id: str):
+async def delete_workflow(workflow_id: str,
+                          state: StateManager = Depends(state_manager)):
     """Delete a workflow"""
-    if workflow_id not in workflows:
+    workflow = state.get_workflow(workflow_id)
+    if workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    del workflows[workflow_id]
+    state.remove_workflow(workflow_id)
     return {"message": "Workflow deleted"}

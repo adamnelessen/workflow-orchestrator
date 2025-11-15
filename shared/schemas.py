@@ -64,8 +64,6 @@ class WorkerStatus(str, Enum):
 
 class Worker(BaseModel):
     id: str
-    host: str
-    port: int
     status: WorkerStatus = WorkerStatus.IDLE
     capabilities: List[JobType]  # Which job types this worker can handle
     current_job_id: Optional[str] = None

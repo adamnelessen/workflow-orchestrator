@@ -1,0 +1,29 @@
+services:
+  coordinator:
+    build:
+      context: .
+      dockerfile: docker/coordinator.Dockerfile
+    ports:
+      - "8000:8000"
+      
+  worker-1:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    environment:
+      - WORKER_ID=worker-1
+      - COORDINATOR_URL=ws://coordinator:8000/ws/workers/worker-1
+  worker-2:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    environment:
+      - WORKER_ID=worker-2
+      - COORDINATOR_URL=ws://coordinator:8000/ws/workers/worker-2
+  worker-3:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    environment:
+      - WORKER_ID=worker-3
+      - COORDINATOR_URL=ws://coordinator:8000/ws/workers/worker-3

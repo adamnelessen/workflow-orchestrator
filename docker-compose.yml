@@ -13,6 +13,7 @@ services:
     environment:
       - WORKER_ID=worker-1
       - COORDINATOR_URL=ws://coordinator:8000/ws/workers/worker-1
+      - WORKER_CAPABILITIES=validation,processing,integration,cleanup
   worker-2:
     build:
       context: .
@@ -20,6 +21,7 @@ services:
     environment:
       - WORKER_ID=worker-2
       - COORDINATOR_URL=ws://coordinator:8000/ws/workers/worker-2
+      - WORKER_CAPABILITIES=validation,processing,integration,cleanup
   worker-3:
     build:
       context: .
@@ -27,3 +29,4 @@ services:
     environment:
       - WORKER_ID=worker-3
       - COORDINATOR_URL=ws://coordinator:8000/ws/workers/worker-3
+      - WORKER_CAPABILITIES=validation,processing,integration,cleanup

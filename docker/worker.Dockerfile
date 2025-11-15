@@ -11,7 +11,6 @@ COPY . .
 
 # Set environment variables
 ENV COORDINATOR_URL=ws://coordinator:8000/ws
-ENV WORKER_ID=""
 ENV LOG_LEVEL=INFO
 
 # Run the worker

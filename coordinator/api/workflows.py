@@ -3,7 +3,7 @@ from typing import List
 from datetime import UTC, datetime
 
 from shared.models import Workflow
-from shared.workflow_definition import parse_yaml_workflow, WorkflowDefinitionError
+from coordinator.utils.workflow_parser import parse_yaml_workflow, WorkflowDefinitionError
 from coordinator.core.state_manager import StateManager, state_manager
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])

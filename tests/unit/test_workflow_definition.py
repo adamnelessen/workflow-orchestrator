@@ -2,8 +2,9 @@
 import pytest
 from datetime import datetime
 
-from shared.workflow_definition import (parse_yaml_workflow, workflow_to_yaml,
-                                        WorkflowDefinitionError)
+from coordinator.utils.workflow_parser import (parse_yaml_workflow,
+                                               workflow_to_yaml,
+                                               WorkflowDefinitionError)
 from shared.enums import JobType, JobStatus, WorkflowStatus
 
 

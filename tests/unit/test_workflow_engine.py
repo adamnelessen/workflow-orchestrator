@@ -91,7 +91,7 @@ def test_find_entry_jobs(workflow_engine: WorkflowEngine,
                          simple_workflow: Workflow) -> None:
     """Test finding entry jobs (jobs with no dependencies)"""
     deps = workflow_engine._build_dependency_graph(simple_workflow)
-    entry_jobs = workflow_engine._find_entry_jobs(simple_workflow, deps)
+    entry_jobs = workflow_engine._find_entry_jobs(deps)
 
     assert entry_jobs == ["job1"]
 

@@ -67,18 +67,13 @@ async def websocket_endpoint(websocket: WebSocket, worker_id: str):
                 msg = JobStatusMessage(**data)
 
                 if msg.status == JobStatus.COMPLETED.value:
-                    await worker_registry.handle_job_completion(
-                        worker_id, msg.job_id, msg.result or {})
                     await workflow_engine.handle_job_completion(
                         msg.job_id, msg.result or {})
                 elif msg.status == JobStatus.FAILED.value:
-                    await worker_registry.handle_job_completion(
-                        worker_id, msg.job_id, msg.result or {})
                     await workflow_engine.handle_job_failure(
                         msg.job_id, msg.result or {})
                 else:
-                    await workflow_engine.update_job_status(
-                        msg.job_id, msg.status)
+                    workflow_engine.update_job_status(msg.job_id, msg.status)
 
                 logger.info(f"Job {msg.job_id} status update: {msg.status}")
 

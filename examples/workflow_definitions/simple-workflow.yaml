@@ -1,0 +1,13 @@
+workflow:
+  name: "simple-workflow"
+  jobs:
+    - id: "step-1"
+      type: "validation"
+      parameters:
+        check: "prerequisites"
+      on_success: "step-2"
+
+    - id: "step-2"
+      type: "processing"
+      parameters:
+        operation: "execute"

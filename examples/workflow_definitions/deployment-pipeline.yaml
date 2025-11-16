@@ -1,0 +1,45 @@
+workflow:
+  name: "deployment-pipeline"
+  jobs:
+    - id: "build-code"
+      type: "processing"
+      parameters:
+        operation: "build"
+        duration: 2
+      on_success: "run-tests"
+      on_failure: "notify-build-failure"
+
+    - id: "run-tests"
+      type: "validation"
+      parameters:
+        schema: "test-suite"
+      on_success: "deploy-staging"
+      on_failure: "notify-test-failure"
+
+    - id: "deploy-staging"
+      type: "integration"
+      parameters:
+        endpoint: "staging-server"
+      on_success: "deploy-production"
+      on_failure: "rollback"
+
+    - id: "deploy-production"
+      type: "integration"
+      parameters:
+        endpoint: "production-server"
+
+    - id: "rollback"
+      type: "cleanup"
+      parameters:
+        target: "deployment"
+      always_run: true
+
+    - id: "notify-build-failure"
+      type: "integration"
+      parameters:
+        recipient: "dev-team@company.com"
+
+    - id: "notify-test-failure"
+      type: "integration"
+      parameters:
+        recipient: "qa-team@company.com"

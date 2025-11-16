@@ -1,0 +1,32 @@
+workflow:
+  name: "data-processing-pipeline"
+  jobs:
+    - id: "validate-input"
+      type: "validation"
+      parameters:
+        schema: "user-data"
+      on_success: "process-data"
+      on_failure: "send-error-notification"
+
+    - id: "process-data"
+      type: "processing"
+      parameters:
+        operation: "transform"
+      on_success: "save-results"
+      on_failure: "cleanup-temp-files"
+
+    - id: "save-results"
+      type: "integration"
+      parameters:
+        endpoint: "data-store"
+
+    - id: "send-error-notification"
+      type: "integration"
+      parameters:
+        recipient: "admin@company.com"
+
+    - id: "cleanup-temp-files"
+      type: "cleanup"
+      parameters:
+        target: "temp-files"
+      always_run: true

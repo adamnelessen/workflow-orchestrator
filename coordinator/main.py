@@ -1,8 +1,6 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime
 import uvicorn
-from coordinator.core.state_manager import StateManager, state_manager
 from coordinator.core.dependencies import get_worker_registry, get_workflow_engine
 from coordinator.api import workflows, workers, health, jobs
 from contextlib import asynccontextmanager

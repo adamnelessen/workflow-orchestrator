@@ -4,7 +4,8 @@ from datetime import datetime, UTC
 from typing import Callable
 
 from coordinator.core.state_manager import StateManager
-from shared.schemas import WorkflowStatus, WorkerStatus, Workflow, Worker
+from shared.enums import WorkflowStatus, WorkerStatus
+from shared.models import Workflow, Worker
 
 
 @pytest.mark.unit

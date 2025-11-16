@@ -5,7 +5,7 @@ from datetime import datetime, UTC
 from typing import Any
 
 from coordinator.main import app
-from shared.schemas import WorkflowStatus, JobType
+from shared.enums import WorkflowStatus, JobType
 
 
 @pytest.fixture
@@ -144,13 +144,13 @@ class TestWorkflowWithJobs:
             "Pipeline with Jobs",
             "jobs": [{
                 "id": "job-1",
-                "type": JobType.VALIDATION,
+                "type": JobType.VALIDATION.value,
                 "parameters": sample_job_parameters[JobType.VALIDATION],
                 "created_at": datetime.now(UTC).isoformat(),
                 "updated_at": datetime.now(UTC).isoformat()
             }, {
                 "id": "job-2",
-                "type": JobType.PROCESSING,
+                "type": JobType.PROCESSING.value,
                 "parameters": sample_job_parameters[JobType.PROCESSING],
                 "on_success": "job-3",
                 "created_at": datetime.now(UTC).isoformat(),

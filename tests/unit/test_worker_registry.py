@@ -6,7 +6,8 @@ from unittest.mock import MagicMock
 
 from coordinator.core.worker_registry import WorkerRegistry
 from coordinator.core.state_manager import StateManager
-from shared.schemas import JobType, WorkerStatus, Worker
+from shared.enums import JobType, WorkerStatus
+from shared.models import Worker
 
 
 @pytest.mark.unit

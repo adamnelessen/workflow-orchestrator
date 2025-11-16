@@ -6,8 +6,8 @@ from typing import Generator
 from unittest.mock import MagicMock, AsyncMock
 
 from coordinator.core.state_manager import StateManager
-from shared.schemas import (Job, JobType, JobStatus, Workflow, WorkflowStatus,
-                            Worker, WorkerStatus)
+from shared.enums import JobType, JobStatus, WorkflowStatus, WorkerStatus
+from shared.models import Job, Workflow, Worker
 
 # ============================================================================
 # Pytest Configuration
@@ -182,7 +182,7 @@ def sample_workflow_config():
         "data-pipeline",
         "jobs": [{
             "id": "validate-1",
-            "type": JobType.VALIDATION,
+            "type": JobType.VALIDATION.value,
             "parameters": {
                 "schema": "input"
             },
@@ -190,7 +190,7 @@ def sample_workflow_config():
             "updated_at": now
         }, {
             "id": "process-1",
-            "type": JobType.PROCESSING,
+            "type": JobType.PROCESSING.value,
             "parameters": {
                 "batch_size": 50
             },
@@ -199,7 +199,7 @@ def sample_workflow_config():
             "updated_at": now
         }, {
             "id": "integrate-1",
-            "type": JobType.INTEGRATION,
+            "type": JobType.INTEGRATION.value,
             "parameters": {
                 "endpoint": "/api/data"
             },

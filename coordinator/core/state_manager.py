@@ -1,6 +1,6 @@
 """In-memory state management for workflows and workers"""
 from typing import Dict, Optional
-from shared.schemas import Workflow, Worker
+from shared.models import Workflow, Worker
 import asyncio
 from fastapi import WebSocket
 

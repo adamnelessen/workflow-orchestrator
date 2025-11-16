@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from datetime import datetime, UTC
 
 from coordinator.core.state_manager import StateManager, state_manager
-from shared.schemas import WorkerStatus
+from shared.enums import WorkerStatus
 
 router = APIRouter(tags=["health"])
 

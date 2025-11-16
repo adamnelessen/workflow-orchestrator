@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from datetime import UTC, datetime
 
-from shared.schemas import Workflow
+from shared.models import Workflow
 from coordinator.core.state_manager import StateManager, state_manager
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])

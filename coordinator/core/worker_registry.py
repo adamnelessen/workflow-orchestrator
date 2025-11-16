@@ -2,7 +2,8 @@ import asyncio
 import logging
 from datetime import datetime, UTC
 from fastapi import WebSocket
-from shared.schemas import Worker, JobType
+from shared.models import Worker
+from shared.enums import JobType
 from coordinator.core.state_manager import StateManager
 
 logger = logging.getLogger(__name__)

@@ -3,7 +3,16 @@ from typing import List
 from datetime import datetime, UTC
 import logging
 
-from shared.schemas import Worker
+from shared.models import Worker
+from shared.enums import MessageType, JobStatus
+from shared.messages import (
+    RegisterMessage,
+    HeartbeatMessage,
+    JobStatusMessage,
+    ReadyMessage,
+    RegistrationAckMessage,
+    HeartbeatAckMessage,
+)
 from coordinator.core.state_manager import StateManager, state_manager
 from coordinator.core.dependencies import get_worker_registry, get_workflow_engine
 
@@ -34,49 +43,48 @@ async def websocket_endpoint(websocket: WebSocket, worker_id: str):
             data = await websocket.receive_json()
             message_type = data.get("type")
 
-            if message_type == "register":
+            if message_type == MessageType.REGISTER.value:
                 # Worker registration
-                capabilities = data.get("capabilities", [])
-                await worker_registry.register_worker(worker_id, capabilities)
+                msg = RegisterMessage(**data)
+                await worker_registry.register_worker(worker_id,
+                                                      msg.capabilities)
 
                 # Send acknowledgment
-                await websocket.send_json({
-                    "type": "registration_ack",
-                    "status": "registered",
-                    "worker_id": worker_id
-                })
+                ack = RegistrationAckMessage(worker_id=worker_id,
+                                             timestamp=datetime.now(UTC))
+                await websocket.send_json(ack.model_dump(mode='json'))
 
-            elif message_type == "heartbeat":
+            elif message_type == MessageType.HEARTBEAT.value:
                 # Worker heartbeat
+                msg = HeartbeatMessage(**data)
                 await worker_registry.handle_heartbeat(worker_id)
-                await websocket.send_json({
-                    "type":
-                    "heartbeat_ack",
-                    "timestamp":
-                    datetime.now(UTC).isoformat()
-                })
 
-            elif message_type == "job_status":
+                ack = HeartbeatAckMessage(timestamp=datetime.now(UTC))
+                await websocket.send_json(ack.model_dump(mode='json'))
+
+            elif message_type == MessageType.JOB_STATUS.value:
                 # Job status update from worker
-                job_id = data.get("job_id")
-                status = data.get("status")
-                result = data.get("result", {})
+                msg = JobStatusMessage(**data)
 
-                if status == "completed":
+                if msg.status == JobStatus.COMPLETED.value:
                     await worker_registry.handle_job_completion(
-                        worker_id, job_id, result)
-                    await workflow_engine.handle_job_completion(job_id, result)
-                elif status == "failed":
+                        worker_id, msg.job_id, msg.result or {})
+                    await workflow_engine.handle_job_completion(
+                        msg.job_id, msg.result or {})
+                elif msg.status == JobStatus.FAILED.value:
                     await worker_registry.handle_job_completion(
-                        worker_id, job_id, result)
-                    await workflow_engine.handle_job_failure(job_id, result)
+                        worker_id, msg.job_id, msg.result or {})
+                    await workflow_engine.handle_job_failure(
+                        msg.job_id, msg.result or {})
                 else:
-                    await workflow_engine.update_job_status(job_id, status)
+                    await workflow_engine.update_job_status(
+                        msg.job_id, msg.status)
 
-                logger.info(f"Job {job_id} status update: {status}")
+                logger.info(f"Job {msg.job_id} status update: {msg.status}")
 
-            elif message_type == "ready":
+            elif message_type == MessageType.READY.value:
                 # Worker is ready for new jobs
+                msg = ReadyMessage(**data)
                 worker = state.get_worker(worker_id)
                 if worker is not None:
                     worker.status = "idle"

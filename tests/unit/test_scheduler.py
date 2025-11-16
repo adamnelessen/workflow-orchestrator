@@ -5,7 +5,8 @@ from typing import Callable
 
 from coordinator.core.scheduler import Scheduler
 from coordinator.core.state_manager import StateManager
-from shared.schemas import JobType, WorkerStatus, Worker
+from shared.enums import JobType, WorkerStatus
+from shared.models import Worker
 
 
 @pytest.mark.unit

@@ -2,7 +2,7 @@
 import requests
 import time
 from typing import List
-from shared.schemas import Worker
+from shared.models import Worker
 
 
 class WorkflowClient:

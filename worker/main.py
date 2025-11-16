@@ -11,6 +11,16 @@ from worker.jobs import validation, processing, integration, cleanup
 import websockets
 from websockets.exceptions import ConnectionClosed
 
+from shared.enums import MessageType, JobStatus, JobType
+from shared.messages import (
+    RegisterMessage,
+    HeartbeatMessage,
+    JobStatusMessage,
+    ReadyMessage,
+    RegistrationAckMessage,
+    JobAssignmentMessage,
+)
+
 # Use LOG_LEVEL from environment, default to INFO
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
@@ -56,20 +66,18 @@ class WorkerNode:
 
     async def register(self):
         """Register capabilities with the coordinator."""
-        message = {"type": "register", "capabilities": self.capabilities}
-        await self.websocket.send(json.dumps(message))
+        message = RegisterMessage(capabilities=self.capabilities,
+                                  timestamp=datetime.now(UTC))
+        await self.websocket.send(message.model_dump_json())
         logger.info(f"Registered with capabilities: {self.capabilities}")
 
     async def send_heartbeat(self):
         """Send periodic heartbeat to coordinator."""
         while self.running and self.websocket:
             try:
-                message = {
-                    "type": "heartbeat",
-                    "worker_id": self.worker_id,
-                    "timestamp": datetime.now(UTC).isoformat()
-                }
-                await self.websocket.send(json.dumps(message))
+                message = HeartbeatMessage(worker_id=self.worker_id,
+                                           timestamp=datetime.now(UTC))
+                await self.websocket.send(message.model_dump_json())
                 await asyncio.sleep(30)  # Send heartbeat every 30 seconds
             except Exception as e:
                 logger.error(f"Error sending heartbeat: {e}")
@@ -81,33 +89,35 @@ class WorkerNode:
         self.current_job = job_id
 
         # Send status update - job started
-        await self.send_job_status(job_id, "running")
+        await self.send_job_status(job_id, JobStatus.RUNNING.value)
 
         try:
             result = None
 
-            if job_type == "validation":
+            if job_type == JobType.VALIDATION.value:
                 job = validation.Validation(parameters)
                 result = await job.execute()
-            elif job_type == "processing":
+            elif job_type == JobType.PROCESSING.value:
                 job = processing.Processing(parameters)
                 result = await job.execute()
-            elif job_type == "integration":
+            elif job_type == JobType.INTEGRATION.value:
                 job = integration.Integration(parameters)
                 result = await job.execute()
-            elif job_type == "cleanup":
+            elif job_type == JobType.CLEANUP.value:
                 job = cleanup.Cleanup(parameters)
                 result = await job.execute()
             else:
                 raise ValueError(f"Unknown job type: {job_type}")
 
             # Send completion status
-            await self.send_job_status(job_id, "completed", result)
+            await self.send_job_status(job_id, JobStatus.COMPLETED.value,
+                                       result)
             logger.info(f"Job {job_id} completed successfully")
 
         except Exception as e:
             logger.error(f"Job {job_id} failed: {e}")
-            await self.send_job_status(job_id, "failed", {"error": str(e)})
+            await self.send_job_status(job_id, JobStatus.FAILED.value,
+                                       {"error": str(e)})
         finally:
             self.current_job = None
             # Notify coordinator that worker is ready for new jobs
@@ -118,42 +128,37 @@ class WorkerNode:
                               status: str,
                               result: Optional[dict] = None):
         """Send job status update to coordinator."""
-        message = {
-            "type": "job_status",
-            "job_id": job_id,
-            "status": status,
-            "worker_id": self.worker_id,
-            "timestamp": datetime.now(UTC).isoformat()
-        }
-
-        if result:
-            message["result"] = result
-
-        await self.websocket.send(json.dumps(message))
+        message = JobStatusMessage(job_id=job_id,
+                                   status=status,
+                                   worker_id=self.worker_id,
+                                   result=result,
+                                   timestamp=datetime.now(UTC))
+        await self.websocket.send(message.model_dump_json())
 
     async def send_ready_status(self):
         """Notify coordinator that worker is ready for new jobs."""
-        message = {"type": "ready", "worker_id": self.worker_id}
-        await self.websocket.send(json.dumps(message))
+        message = ReadyMessage(worker_id=self.worker_id,
+                               timestamp=datetime.now(UTC))
+        await self.websocket.send(message.model_dump_json())
 
     async def handle_message(self, message: dict):
         """Handle messages from the coordinator."""
         message_type = message.get("type")
 
-        if message_type == "job_assignment":
-            job_id = message.get("job_id")
-            job_type = message.get("job_type")
-            parameters = message.get("parameters", {})
-
+        if message_type == MessageType.JOB_ASSIGNMENT.value:
+            msg = JobAssignmentMessage(**message)
             # Execute job in background
-            asyncio.create_task(self.execute_job(job_id, job_type, parameters))
+            asyncio.create_task(
+                self.execute_job(msg.job_id, msg.job_type, msg.parameters))
 
-        elif message_type == "heartbeat_ack":
+        elif message_type == MessageType.HEARTBEAT_ACK.value:
             # Heartbeat acknowledged
             pass
 
-        elif message_type == "registration_ack":
-            logger.info("Registration acknowledged by coordinator")
+        elif message_type == MessageType.REGISTRATION_ACK.value:
+            msg = RegistrationAckMessage(**message)
+            logger.info(
+                f"Registration acknowledged by coordinator: {msg.status}")
 
         else:
             logger.warning(f"Unknown message type: {message_type}")

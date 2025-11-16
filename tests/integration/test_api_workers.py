@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from datetime import datetime, UTC
 
 from coordinator.main import app
-from shared.schemas import WorkerStatus, JobType
+from shared.enums import WorkerStatus, JobType, JobStatus
 
 
 @pytest.fixture
@@ -37,8 +37,10 @@ class TestWorkerWebSocket:
         with client.websocket_connect("/workers/test-worker-reg") as websocket:
             # Send registration
             websocket.send_json({
-                "type": "register",
-                "capabilities": ["validation", "processing"]
+                "type":
+                "register",
+                "capabilities":
+                [JobType.VALIDATION.value, JobType.PROCESSING.value]
             })
 
             # Receive acknowledgment
@@ -55,7 +57,7 @@ class TestWorkerWebSocket:
             # Register first
             websocket.send_json({
                 "type": "register",
-                "capabilities": ["validation"]
+                "capabilities": [JobType.VALIDATION.value]
             })
             websocket.receive_json()  # Registration ack
 
@@ -75,7 +77,7 @@ class TestWorkerWebSocket:
             # Register
             websocket.send_json({
                 "type": "register",
-                "capabilities": ["validation"]
+                "capabilities": [JobType.VALIDATION.value]
             })
             websocket.receive_json()  # Registration ack
 
@@ -83,7 +85,7 @@ class TestWorkerWebSocket:
             websocket.send_json({
                 "type": "job_status",
                 "job_id": "job-123",
-                "status": "completed",
+                "status": JobStatus.COMPLETED.value,
                 "result": {
                     "success": True
                 }
@@ -100,7 +102,7 @@ class TestWorkerWebSocket:
             # Register
             websocket.send_json({
                 "type": "register",
-                "capabilities": ["processing"]
+                "capabilities": [JobType.PROCESSING.value]
             })
             websocket.receive_json()  # Registration ack
 
@@ -108,7 +110,7 @@ class TestWorkerWebSocket:
             websocket.send_json({
                 "type": "job_status",
                 "job_id": "job-456",
-                "status": "failed",
+                "status": JobStatus.FAILED.value,
                 "result": {
                     "error": "Processing error"
                 }
@@ -125,7 +127,7 @@ class TestWorkerWebSocket:
             # Register
             websocket.send_json({
                 "type": "register",
-                "capabilities": ["validation"]
+                "capabilities": [JobType.VALIDATION.value]
             })
             websocket.receive_json()  # Registration ack
 
@@ -148,8 +150,10 @@ class TestWorkerWebSocketReconnection:
         # First connection
         with client.websocket_connect(f"/workers/{worker_id}") as websocket:
             websocket.send_json({
-                "type": "register",
-                "capabilities": ["validation", "processing"]
+                "type":
+                "register",
+                "capabilities":
+                [JobType.VALIDATION.value, JobType.PROCESSING.value]
             })
             data = websocket.receive_json()
             assert data["type"] == "registration_ack"
@@ -157,8 +161,10 @@ class TestWorkerWebSocketReconnection:
         # Connection closed, reconnect
         with client.websocket_connect(f"/workers/{worker_id}") as websocket:
             websocket.send_json({
-                "type": "register",
-                "capabilities": ["validation", "processing"]
+                "type":
+                "register",
+                "capabilities":
+                [JobType.VALIDATION.value, JobType.PROCESSING.value]
             })
             data = websocket.receive_json()
             assert data["type"] == "registration_ack"

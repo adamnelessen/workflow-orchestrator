@@ -1,7 +1,9 @@
 import logging
 from typing import Optional
+from datetime import datetime, UTC
 from fastapi import WebSocket
 from coordinator.core.state_manager import StateManager
+from shared.messages import JobAssignmentMessage
 
 logger = logging.getLogger(__name__)
 
@@ -64,14 +66,13 @@ class Scheduler:
         self.state.assign_job(job_id, worker_id)
 
         # Send job to worker
-        message = {
-            "type": "job_assignment",
-            "job_id": job_id,
-            "job_type": job_type,
-            "parameters": parameters
-        }
+        message = JobAssignmentMessage(job_id=job_id,
+                                       job_type=job_type,
+                                       parameters=parameters,
+                                       timestamp=datetime.now(UTC))
 
-        success = await self.send_message(worker_id, message)
+        success = await self.send_message(worker_id,
+                                          message.model_dump(mode='json'))
         if success:
             logger.info(f"Job {job_id} assigned to worker {worker_id}")
             return worker_id

@@ -1,25 +1,13 @@
+"""Domain model definitions for workflows, jobs, and workers"""
 from pydantic import BaseModel
-from enum import Enum
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-
-class JobStatus(str, Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    RETRYING = "retrying"
-
-
-class JobType(str, Enum):
-    VALIDATION = "validation"
-    PROCESSING = "processing"
-    INTEGRATION = "integration"
-    CLEANUP = "cleanup"
+from .enums import JobStatus, JobType, WorkflowStatus, WorkerStatus
 
 
 class Job(BaseModel):
+    """A unit of work to be executed by a worker"""
     id: str
     type: JobType
     parameters: Dict[str, Any]
@@ -36,15 +24,8 @@ class Job(BaseModel):
     updated_at: datetime
 
 
-class WorkflowStatus(str, Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-
 class Workflow(BaseModel):
+    """A collection of jobs with dependencies"""
     id: str
     name: str
     status: WorkflowStatus = WorkflowStatus.PENDING
@@ -56,13 +37,8 @@ class Workflow(BaseModel):
     updated_at: datetime
 
 
-class WorkerStatus(str, Enum):
-    IDLE = "idle"
-    BUSY = "busy"
-    OFFLINE = "offline"
-
-
 class Worker(BaseModel):
+    """A worker node that can execute jobs"""
     id: str
     status: WorkerStatus = WorkerStatus.IDLE
     capabilities: List[JobType]  # Which job types this worker can handle

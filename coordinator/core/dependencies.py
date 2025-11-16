@@ -33,5 +33,7 @@ def get_workflow_engine():
 
     global _workflow_engine
     if _workflow_engine is None:
-        _workflow_engine = WorkflowEngine(get_worker_registry())
+        state = state_manager()
+        scheduler = get_scheduler()
+        _workflow_engine = WorkflowEngine(state, scheduler)
     return _workflow_engine

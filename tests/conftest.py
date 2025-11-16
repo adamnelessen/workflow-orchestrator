@@ -1,8 +1,7 @@
 """Root conftest.py - Shared fixtures for all tests"""
 import pytest
-import asyncio
 from datetime import datetime, UTC
-from typing import Generator
+from typing import Callable, Any
 from unittest.mock import MagicMock, AsyncMock
 
 from coordinator.core.state_manager import StateManager
@@ -22,12 +21,12 @@ from shared.models import Job, Workflow, Worker
 
 
 @pytest.fixture
-def job_factory():
+def job_factory() -> Callable:
     """Factory for creating test Job instances"""
 
     def _create_job(job_id: str = "test-job-1",
                     job_type: JobType = JobType.VALIDATION,
-                    parameters: dict = None,
+                    parameters: dict | None = None,
                     status: JobStatus = JobStatus.PENDING,
                     **kwargs) -> Job:
         return Job(id=job_id,
@@ -42,12 +41,12 @@ def job_factory():
 
 
 @pytest.fixture
-def workflow_factory(job_factory):
+def workflow_factory(job_factory: Callable) -> Callable:
     """Factory for creating test Workflow instances"""
 
     def _create_workflow(workflow_id: str = "test-workflow-1",
                          name: str = "Test Workflow",
-                         jobs: list = None,
+                         jobs: list[Job] | None = None,
                          status: WorkflowStatus = WorkflowStatus.PENDING,
                          **kwargs) -> Workflow:
         if jobs is None:
@@ -69,13 +68,13 @@ def workflow_factory(job_factory):
 
 
 @pytest.fixture
-def worker_factory():
+def worker_factory() -> Callable:
     """Factory for creating test Worker instances"""
 
     def _create_worker(worker_id: str = "test-worker-1",
                        host: str = "localhost",
                        port: int = 9000,
-                       capabilities: list = None,
+                       capabilities: list[JobType] | None = None,
                        status: WorkerStatus = WorkerStatus.IDLE,
                        **kwargs) -> Worker:
         if capabilities is None:
@@ -99,13 +98,106 @@ def worker_factory():
 
 
 @pytest.fixture
-def state_manager():
+def state_manager() -> StateManager:
     """Create a fresh StateManager instance for testing"""
     return StateManager()
 
 
 @pytest.fixture
-def populated_state(state_manager, workflow_factory, worker_factory):
+def scheduler(state_manager: StateManager):
+    """Create a scheduler for testing"""
+    from coordinator.core.scheduler import Scheduler
+    return Scheduler(state_manager)
+
+
+@pytest.fixture
+def workflow_engine(state_manager: StateManager, scheduler):
+    """Create a workflow engine for testing"""
+    from coordinator.core.workflow_engine import WorkflowEngine
+    return WorkflowEngine(state_manager, scheduler)
+
+
+@pytest.fixture
+def simple_workflow() -> Workflow:
+    """Create a simple linear workflow"""
+    now = datetime.now(UTC)
+    jobs = [
+        Job(id="job1",
+            type=JobType.VALIDATION,
+            parameters={"check": "prerequisites"},
+            status=JobStatus.PENDING,
+            on_success="job2",
+            created_at=now,
+            updated_at=now),
+        Job(id="job2",
+            type=JobType.PROCESSING,
+            parameters={"operation": "execute"},
+            status=JobStatus.PENDING,
+            created_at=now,
+            updated_at=now),
+    ]
+    workflow = Workflow(id="workflow1",
+                        name="simple-workflow",
+                        status=WorkflowStatus.PENDING,
+                        jobs=jobs,
+                        created_at=now,
+                        updated_at=now)
+    return workflow
+
+
+@pytest.fixture
+def branching_workflow() -> Workflow:
+    """Create a workflow with success/failure branches"""
+    now = datetime.now(UTC)
+    jobs = [
+        Job(id="job1",
+            type=JobType.VALIDATION,
+            parameters={},
+            status=JobStatus.PENDING,
+            on_success="job2",
+            on_failure="job3",
+            created_at=now,
+            updated_at=now),
+        Job(id="job2",
+            type=JobType.PROCESSING,
+            parameters={},
+            status=JobStatus.PENDING,
+            created_at=now,
+            updated_at=now),
+        Job(id="job3",
+            type=JobType.CLEANUP,
+            parameters={},
+            status=JobStatus.PENDING,
+            always_run=True,
+            created_at=now,
+            updated_at=now),
+    ]
+    workflow = Workflow(id="workflow2",
+                        name="branching-workflow",
+                        status=WorkflowStatus.PENDING,
+                        jobs=jobs,
+                        created_at=now,
+                        updated_at=now)
+    return workflow
+
+
+@pytest.fixture
+def mock_worker(state_manager: StateManager) -> Worker:
+    """Create a mock worker"""
+    now = datetime.now(UTC)
+    worker = Worker(
+        id="worker1",
+        status=WorkerStatus.IDLE,
+        capabilities=[JobType.VALIDATION, JobType.PROCESSING, JobType.CLEANUP],
+        last_heartbeat=now,
+        registered_at=now)
+    state_manager.add_worker(worker)
+    return worker
+
+
+@pytest.fixture
+def populated_state(state_manager: StateManager, workflow_factory: Callable,
+                    worker_factory: Callable) -> StateManager:
     """StateManager with pre-populated test data"""
     # Add workflows
     workflow1 = workflow_factory(workflow_id="wf-1", name="Workflow 1")
@@ -128,7 +220,7 @@ def populated_state(state_manager, workflow_factory, worker_factory):
 
 
 @pytest.fixture
-def mock_websocket():
+def mock_websocket() -> MagicMock:
     """Mock WebSocket connection"""
     ws = MagicMock()
     ws.accept = AsyncMock()
@@ -139,7 +231,7 @@ def mock_websocket():
 
 
 @pytest.fixture
-def mock_worker_registry(state_manager):
+def mock_worker_registry(state_manager: StateManager):
     """Mock WorkerRegistry for testing"""
     from coordinator.core.worker_registry import WorkerRegistry
     registry = WorkerRegistry(state_manager)
@@ -152,7 +244,7 @@ def mock_worker_registry(state_manager):
 
 
 @pytest.fixture
-def sample_job_parameters():
+def sample_job_parameters() -> dict[JobType, dict[str, Any]]:
     """Sample job parameters for different job types"""
     return {
         JobType.VALIDATION: {
@@ -174,7 +266,7 @@ def sample_job_parameters():
 
 
 @pytest.fixture
-def sample_workflow_config():
+def sample_workflow_config() -> dict[str, Any]:
     """Sample workflow configuration"""
     now = datetime.now(UTC).isoformat()
     return {
@@ -210,14 +302,15 @@ def sample_workflow_config():
 
 
 @pytest.fixture
-def workflow_with_jobs(sample_job_parameters):
+def workflow_with_jobs(
+        sample_job_parameters: dict[JobType, dict[str, Any]]) -> Callable:
     """Create a workflow with jobs for testing
     
     Returns a function that accepts a TestClient and creates a workflow.
     This allows the fixture to work with the client fixture from individual test files.
     """
 
-    def _create_workflow(client):
+    def _create_workflow(client) -> dict[str, Any]:
         from fastapi.testclient import TestClient
         import uuid
 

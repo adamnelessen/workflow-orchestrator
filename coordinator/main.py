@@ -4,7 +4,7 @@ from datetime import datetime
 import uvicorn
 from coordinator.core.state_manager import StateManager, state_manager
 from coordinator.core.dependencies import get_worker_registry, get_workflow_engine
-from coordinator.api import workflows, workers, health
+from coordinator.api import workflows, workers, health, jobs
 from contextlib import asynccontextmanager
 import asyncio
 import logging
@@ -55,6 +55,7 @@ get_workflow_engine()
 app.include_router(health.router)
 app.include_router(workflows.router)
 app.include_router(workers.router)
+app.include_router(jobs.router)
 
 if __name__ == "__main__":
     uvicorn.run("coordinator.main:app", host="0.0.0.0", port=8000, reload=True)

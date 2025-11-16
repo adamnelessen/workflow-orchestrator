@@ -207,3 +207,56 @@ def sample_workflow_config():
             "updated_at": now
         }]
     }
+
+
+@pytest.fixture
+def workflow_with_jobs(sample_job_parameters):
+    """Create a workflow with jobs for testing
+    
+    Returns a function that accepts a TestClient and creates a workflow.
+    This allows the fixture to work with the client fixture from individual test files.
+    """
+
+    def _create_workflow(client):
+        from fastapi.testclient import TestClient
+        import uuid
+
+        # Use unique ID for each workflow to avoid conflicts between tests
+        workflow_id = f"wf-test-{uuid.uuid4().hex[:8]}"
+
+        workflow_data = {
+            "id":
+            workflow_id,
+            "name":
+            "Test Pipeline",
+            "jobs": [{
+                "id": "job-1",
+                "type": JobType.VALIDATION.value,
+                "parameters": sample_job_parameters[JobType.VALIDATION],
+                "created_at": datetime.now(UTC).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat()
+            }, {
+                "id": "job-2",
+                "type": JobType.PROCESSING.value,
+                "parameters": sample_job_parameters[JobType.PROCESSING],
+                "on_success": "job-3",
+                "created_at": datetime.now(UTC).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat()
+            }, {
+                "id": "job-3",
+                "type": JobType.INTEGRATION.value,
+                "parameters": sample_job_parameters[JobType.INTEGRATION],
+                "created_at": datetime.now(UTC).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat()
+            }],
+            "created_at":
+            datetime.now(UTC).isoformat(),
+            "updated_at":
+            datetime.now(UTC).isoformat()
+        }
+
+        response = client.post("/workflows", json=workflow_data)
+        assert response.status_code == 200
+        return response.json()
+
+    return _create_workflow

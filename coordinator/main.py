@@ -4,7 +4,7 @@ from datetime import datetime
 import uvicorn
 from coordinator.core.state_manager import StateManager, state_manager
 from coordinator.core.dependencies import get_worker_registry, get_workflow_engine
-from coordinator.api import workflows, workers
+from coordinator.api import workflows, workers, health
 from contextlib import asynccontextmanager
 import asyncio
 import logging
@@ -52,39 +52,9 @@ app.add_middleware(
 get_workflow_engine()
 
 # Include routers
+app.include_router(health.router)
 app.include_router(workflows.router)
 app.include_router(workers.router)
-
-
-@app.get("/")
-async def root():
-    """Health check endpoint"""
-    return {
-        "service": "coordinator",
-        "status": "running",
-        "timestamp": datetime.now().isoformat()
-    }
-
-
-@app.get("/health")
-async def health(state: StateManager = Depends(state_manager)):
-    """Detailed health status"""
-    from shared.schemas import WorkerStatus
-
-    return {
-        "status":
-        "healthy",
-        "workflows":
-        len(state.workflows),
-        "workers":
-        len(state.workers),
-        "active_workers":
-        len([
-            w for w in state.workers.values()
-            if w.status != WorkerStatus.OFFLINE
-        ])
-    }
-
 
 if __name__ == "__main__":
     uvicorn.run("coordinator.main:app", host="0.0.0.0", port=8000, reload=True)

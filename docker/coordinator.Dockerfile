@@ -2,11 +2,17 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy project files for installation
+COPY pyproject.toml .
+COPY coordinator/ ./coordinator/
+COPY worker/ ./worker/
+COPY shared/ ./shared/
+COPY client/ ./client/
 
-# Copy application code
+# Install the package
+RUN pip install --no-cache-dir .
+
+# Copy remaining files
 COPY . .
 
 # Expose the coordinator port

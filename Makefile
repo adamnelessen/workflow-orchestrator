@@ -1,4 +1,4 @@
-.PHONY: venv install clean test test-unit test-integration test-cov test-watch lint run-coordinator run-worker docker-build docker-up docker-down
+.PHONY: venv install clean test test-unit test-integration test-cov test-watch lint run-coordinator run-worker docker-build docker-up docker-down submit-workflow workflow-demo
 
 # Create virtual environment
 venv:
@@ -70,3 +70,10 @@ docker-down:
 
 docker-logs:
 	docker-compose logs -f
+
+# Example workflow scripts (requires coordinator and workers to be running)
+submit-workflow:
+	.venv/bin/python -m examples.submit_workflow
+
+workflow-demo:
+	.venv/bin/python -m examples.workflow_demo

@@ -29,4 +29,4 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["coordinator*", "worker*", "shared*", "client*"]
+include = ["coordinator*", "worker*", "shared*", "client*", "examples*"]

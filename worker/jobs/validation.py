@@ -18,6 +18,8 @@ class Validation(BaseJob):
 
         # Randomly succeed or fail for demonstration
         success = random.random() > 0.2  # 80% success rate
+        if not success:
+            raise Exception("Validation failed")
 
         return {
             "schema": schema,

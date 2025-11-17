@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Example script demonstrating how to submit and start workflows from YAML files."""
 
+import argparse
 import sys
 import time
 from pathlib import Path
@@ -11,12 +12,23 @@ from shared.enums import WorkflowStatus
 
 def main():
     """Submit and start a workflow from a YAML file."""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description="Submit and start a workflow from a YAML file")
+    parser.add_argument(
+        "workflow_file",
+        nargs="?",
+        default="deployment-pipeline.yaml",
+        help="Workflow definition filename (default: deployment-pipeline.yaml)"
+    )
+    args = parser.parse_args()
+
     # Initialize client
     client = WorkflowClient(base_url="http://localhost:8000")
 
     # Path to the workflow definition
     yaml_path = Path(
-        __file__).parent / "workflow_definitions" / "simple-workflow.yaml"
+        __file__).parent / "workflow_definitions" / args.workflow_file
 
     print(f"Submitting workflow from: {yaml_path}")
 

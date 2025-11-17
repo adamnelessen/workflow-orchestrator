@@ -152,7 +152,7 @@ class TestWorkflowWithJobs:
                 "id": "job-2",
                 "type": JobType.PROCESSING.value,
                 "parameters": sample_job_parameters[JobType.PROCESSING],
-                "on_success": "job-3",
+                "on_success": ["job-3"],
                 "created_at": datetime.now(UTC).isoformat(),
                 "updated_at": datetime.now(UTC).isoformat()
             }],
@@ -167,4 +167,4 @@ class TestWorkflowWithJobs:
         assert response.status_code == 200
         data = response.json()
         assert len(data["jobs"]) == 2
-        assert data["jobs"][1]["on_success"] == "job-3"
+        assert data["jobs"][1]["on_success"] == ["job-3"]

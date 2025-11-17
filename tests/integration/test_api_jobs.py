@@ -75,7 +75,7 @@ class TestJobEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == "job-2"
-        assert data["on_success"] == "job-3"
+        assert data["on_success"] == ["job-3"]
 
     def test_get_nonexistent_job(self, client: TestClient,
                                  workflow_with_jobs) -> None:

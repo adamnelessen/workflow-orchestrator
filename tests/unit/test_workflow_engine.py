@@ -43,13 +43,13 @@ def test_validate_circular_dependency(workflow_engine: WorkflowEngine) -> None:
         Job(id="job1",
             type=JobType.VALIDATION,
             parameters={},
-            on_success="job2",
+            on_success=["job2"],
             created_at=now,
             updated_at=now),
         Job(id="job2",
             type=JobType.PROCESSING,
             parameters={},
-            on_success="job1",
+            on_success=["job1"],
             created_at=now,
             updated_at=now),  # Circular!
     ]
@@ -72,7 +72,7 @@ def test_validate_invalid_job_reference(
         Job(id="job1",
             type=JobType.VALIDATION,
             parameters={},
-            on_success="nonexistent",
+            on_success=["nonexistent"],
             created_at=now,
             updated_at=now),
     ]

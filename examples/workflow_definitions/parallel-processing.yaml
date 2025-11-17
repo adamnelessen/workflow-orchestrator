@@ -1,0 +1,63 @@
+workflow:
+  name: "parallel-processing"
+  jobs:
+    - id: "split-data"
+      type: "processing"
+      parameters:
+        operation: "split"
+        chunks: 3
+      on_success: ["process-chunk-a", "process-chunk-b", "process-chunk-c"]
+      on_failure: "notify-failure"
+
+    - id: "process-chunk-a"
+      type: "processing"
+      parameters:
+        operation: "process"
+        chunk_id: "a"
+        duration: 3
+      on_success: "aggregate-results"
+      on_failure: "notify-failure"
+
+    - id: "process-chunk-b"
+      type: "processing"
+      parameters:
+        operation: "process"
+        chunk_id: "b"
+        duration: 3
+      on_success: "aggregate-results"
+      on_failure: "notify-failure"
+
+    - id: "process-chunk-c"
+      type: "processing"
+      parameters:
+        operation: "process"
+        chunk_id: "c"
+        duration: 3
+      on_success: "aggregate-results"
+      on_failure: "notify-failure"
+
+    - id: "aggregate-results"
+      type: "processing"
+      parameters:
+        operation: "aggregate"
+      on_success: "validate-output"
+      on_failure: "notify-failure"
+
+    - id: "validate-output"
+      type: "validation"
+      parameters:
+        schema: "aggregated-data"
+      on_success: "notify-success"
+      on_failure: "notify-failure"
+
+    - id: "notify-success"
+      type: "integration"
+      parameters:
+        recipient: "data-team@company.com"
+        message: "Parallel processing completed successfully"
+
+    - id: "notify-failure"
+      type: "integration"
+      parameters:
+        recipient: "data-team@company.com"
+        message: "Parallel processing failed"

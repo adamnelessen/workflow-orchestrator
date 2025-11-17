@@ -91,21 +91,33 @@ class WorkflowEngine:
         # Validate: check all referenced jobs exist
         job_ids = {job.id for job in workflow.jobs}
         for job in workflow.jobs:
-            if job.on_success and job.on_success not in job_ids:
-                raise ValueError(
-                    f"Job {job.id} references non-existent on_success job: {job.on_success}"
-                )
-            if job.on_failure and job.on_failure not in job_ids:
-                raise ValueError(
-                    f"Job {job.id} references non-existent on_failure job: {job.on_failure}"
-                )
+            # Validate on_success references (always a list)
+            if job.on_success:
+                for ref in job.on_success:
+                    if ref not in job_ids:
+                        raise ValueError(
+                            f"Job {job.id} references non-existent on_success job: {ref}"
+                        )
+
+            # Validate on_failure references (always a list)
+            if job.on_failure:
+                for ref in job.on_failure:
+                    if ref not in job_ids:
+                        raise ValueError(
+                            f"Job {job.id} references non-existent on_failure job: {ref}"
+                        )
 
         # Build reverse dependencies from on_success and on_failure
         for job in workflow.jobs:
+            # Handle on_success (always a list)
             if job.on_success:
-                dependencies[job.on_success].add(job.id)
+                for ref in job.on_success:
+                    dependencies[ref].add(job.id)
+
+            # Handle on_failure (always a list)
             if job.on_failure:
-                dependencies[job.on_failure].add(job.id)
+                for ref in job.on_failure:
+                    dependencies[ref].add(job.id)
 
         # Validate: check for cycles
         self._validate_no_cycles(dependencies)
@@ -181,11 +193,11 @@ class WorkflowEngine:
 
         workflow.updated_at = datetime.now(UTC)
 
-        # Schedule next jobs based on on_success
+        # Schedule next jobs based on on_success (always a list)
         if job.on_success:
-            next_job_id = job.on_success
-            if self._can_schedule_job(workflow, next_job_id):
-                await self._schedule_job(workflow.id, next_job_id)
+            for next_job_id in job.on_success:
+                if self._can_schedule_job(workflow, next_job_id):
+                    await self._schedule_job(workflow.id, next_job_id)
 
         # Check if workflow is complete
         await self._check_workflow_completion(workflow)
@@ -249,11 +261,11 @@ class WorkflowEngine:
 
         workflow.updated_at = datetime.now(UTC)
 
-        # Schedule failure handler if specified
+        # Schedule failure handler if specified (always a list)
         if job.on_failure:
-            next_job_id = job.on_failure
-            if self._can_schedule_job(workflow, next_job_id):
-                await self._schedule_job(workflow.id, next_job_id)
+            for next_job_id in job.on_failure:
+                if self._can_schedule_job(workflow, next_job_id):
+                    await self._schedule_job(workflow.id, next_job_id)
         else:
             # No failure handler, workflow fails
             await self._fail_workflow(workflow)

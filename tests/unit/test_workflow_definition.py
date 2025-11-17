@@ -55,8 +55,8 @@ workflow:
     workflow = parse_yaml_workflow(yaml_content)
 
     assert len(workflow.jobs) == 3
-    assert workflow.jobs[0].on_success == "process"
-    assert workflow.jobs[0].on_failure == "notify"
+    assert workflow.jobs[0].on_success == ["process"]
+    assert workflow.jobs[0].on_failure == ["notify"]
 
 
 def test_parse_workflow_with_always_run():
@@ -265,8 +265,8 @@ workflow:
     # Verify job structure
     job_map = {job.id: job for job in workflow.jobs}
 
-    assert job_map["validate-input"].on_success == "process-data"
-    assert job_map["validate-input"].on_failure == "send-error-notification"
-    assert job_map["process-data"].on_success == "save-results"
-    assert job_map["process-data"].on_failure == "cleanup-temp-files"
+    assert job_map["validate-input"].on_success == ["process-data"]
+    assert job_map["validate-input"].on_failure == ["send-error-notification"]
+    assert job_map["process-data"].on_success == ["save-results"]
+    assert job_map["process-data"].on_failure == ["cleanup-temp-files"]
     assert job_map["cleanup-temp-files"].always_run is True

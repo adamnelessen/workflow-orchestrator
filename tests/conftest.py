@@ -126,7 +126,7 @@ def simple_workflow() -> Workflow:
             type=JobType.VALIDATION,
             parameters={"check": "prerequisites"},
             status=JobStatus.PENDING,
-            on_success="job2",
+            on_success=["job2"],
             created_at=now,
             updated_at=now),
         Job(id="job2",
@@ -154,8 +154,8 @@ def branching_workflow() -> Workflow:
             type=JobType.VALIDATION,
             parameters={},
             status=JobStatus.PENDING,
-            on_success="job2",
-            on_failure="job3",
+            on_success=["job2"],
+            on_failure=["job3"],
             created_at=now,
             updated_at=now),
         Job(id="job2",
@@ -286,7 +286,7 @@ def sample_workflow_config() -> dict[str, Any]:
             "parameters": {
                 "batch_size": 50
             },
-            "on_success": "integrate-1",
+            "on_success": ["integrate-1"],
             "created_at": now,
             "updated_at": now
         }, {
@@ -332,7 +332,7 @@ def workflow_with_jobs(
                 "id": "job-2",
                 "type": JobType.PROCESSING.value,
                 "parameters": sample_job_parameters[JobType.PROCESSING],
-                "on_success": "job-3",
+                "on_success": ["job-3"],
                 "created_at": datetime.now(UTC).isoformat(),
                 "updated_at": datetime.now(UTC).isoformat()
             }, {

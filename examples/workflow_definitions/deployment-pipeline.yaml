@@ -27,12 +27,12 @@ workflow:
       type: "integration"
       parameters:
         endpoint: "production-server"
+      on_failure: "rollback"
 
     - id: "rollback"
       type: "cleanup"
       parameters:
         target: "deployment"
-      always_run: true
 
     - id: "notify-build-failure"
       type: "integration"

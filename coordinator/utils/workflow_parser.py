@@ -150,14 +150,32 @@ def _parse_job(job_def: Dict[str, Any], index: int) -> Job:
     always_run = job_def.get("always_run", False)
     max_retries = job_def.get("max_retries", 3)
 
-    # Validate types
-    if on_success is not None and not isinstance(on_success, str):
-        raise WorkflowDefinitionError(
-            f"Job '{job_def['id']}' on_success must be a string")
+    # Normalize on_success and on_failure to always be lists (or None)
+    if on_success is not None:
+        if isinstance(on_success, str):
+            on_success = [on_success]
+        elif isinstance(on_success, list):
+            if not all(isinstance(j, str) for j in on_success):
+                raise WorkflowDefinitionError(
+                    f"Job '{job_def['id']}' on_success list must contain only strings"
+                )
+        else:
+            raise WorkflowDefinitionError(
+                f"Job '{job_def['id']}' on_success must be a string or list of strings"
+            )
 
-    if on_failure is not None and not isinstance(on_failure, str):
-        raise WorkflowDefinitionError(
-            f"Job '{job_def['id']}' on_failure must be a string")
+    if on_failure is not None:
+        if isinstance(on_failure, str):
+            on_failure = [on_failure]
+        elif isinstance(on_failure, list):
+            if not all(isinstance(j, str) for j in on_failure):
+                raise WorkflowDefinitionError(
+                    f"Job '{job_def['id']}' on_failure list must contain only strings"
+                )
+        else:
+            raise WorkflowDefinitionError(
+                f"Job '{job_def['id']}' on_failure must be a string or list of strings"
+            )
 
     if not isinstance(always_run, bool):
         raise WorkflowDefinitionError(
@@ -193,15 +211,21 @@ def _validate_job_references(jobs: List[Job], job_ids: set):
         WorkflowDefinitionError: If a job references a non-existent job
     """
     for job in jobs:
-        if job.on_success and job.on_success not in job_ids:
-            raise WorkflowDefinitionError(
-                f"Job '{job.id}' references non-existent job in on_success: '{job.on_success}'"
-            )
+        # Validate on_success references (always a list)
+        if job.on_success:
+            for ref in job.on_success:
+                if ref not in job_ids:
+                    raise WorkflowDefinitionError(
+                        f"Job '{job.id}' references non-existent job in on_success: '{ref}'"
+                    )
 
-        if job.on_failure and job.on_failure not in job_ids:
-            raise WorkflowDefinitionError(
-                f"Job '{job.id}' references non-existent job in on_failure: '{job.on_failure}'"
-            )
+        # Validate on_failure references (always a list)
+        if job.on_failure:
+            for ref in job.on_failure:
+                if ref not in job_ids:
+                    raise WorkflowDefinitionError(
+                        f"Job '{job.id}' references non-existent job in on_failure: '{ref}'"
+                    )
 
 
 def workflow_to_yaml(workflow: Workflow) -> str:

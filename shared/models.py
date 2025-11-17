@@ -1,6 +1,6 @@
 """Domain model definitions for workflows, jobs, and workers"""
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 
 from .enums import JobStatus, JobType, WorkflowStatus, WorkerStatus
@@ -17,8 +17,8 @@ class Job(BaseModel):
     error: Optional[str] = None
     retry_count: int = 0
     max_retries: int = 3
-    on_success: Optional[str] = None
-    on_failure: Optional[str] = None
+    on_success: Optional[List[str]] = None
+    on_failure: Optional[List[str]] = None
     always_run: bool = False
     created_at: datetime
     updated_at: datetime

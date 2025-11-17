@@ -14,7 +14,11 @@ def get_worker_registry() -> WorkerRegistry:
     global _worker_registry
     if _worker_registry is None:
         state = state_manager()
-        _worker_registry = WorkerRegistry(state)
+        # Initialize without workflow_engine first to avoid circular dependency
+        _worker_registry = WorkerRegistry(state, None)
+        # Set workflow_engine after it's created
+        if _workflow_engine is not None:
+            _worker_registry.workflow_engine = _workflow_engine
     return _worker_registry
 
 
@@ -36,4 +40,7 @@ def get_workflow_engine():
         state = state_manager()
         scheduler = get_scheduler()
         _workflow_engine = WorkflowEngine(state, scheduler)
+        # Now that workflow engine is created, set it on the worker registry
+        worker_registry = get_worker_registry()
+        worker_registry.workflow_engine = _workflow_engine
     return _workflow_engine

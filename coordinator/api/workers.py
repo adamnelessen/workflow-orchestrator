@@ -4,7 +4,7 @@ from datetime import datetime, UTC
 import logging
 
 from shared.models import Worker
-from shared.enums import MessageType, JobStatus
+from shared.enums import MessageType, JobStatus, WorkflowStatus
 from shared.messages import (
     RegisterMessage,
     HeartbeatMessage,
@@ -83,6 +83,12 @@ async def websocket_endpoint(websocket: WebSocket, worker_id: str):
                 worker = state.get_worker(worker_id)
                 if worker is not None:
                     worker.status = "idle"
+
+                    # Try to schedule any pending/retrying jobs that are waiting for workers
+                    for workflow in state.list_workflows():
+                        if workflow.status == WorkflowStatus.RUNNING:
+                            await workflow_engine._reschedule_pending_jobs(
+                                workflow)
 
             else:
                 logger.warning(

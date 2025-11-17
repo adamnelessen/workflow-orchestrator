@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, UTC
 from fastapi import WebSocket
 from shared.models import Worker
-from shared.enums import JobType
+from shared.enums import JobType, JobStatus
 from coordinator.core.state_manager import StateManager
 
 logger = logging.getLogger(__name__)
@@ -12,8 +12,9 @@ logger = logging.getLogger(__name__)
 class WorkerRegistry:
     """Manages WebSocket connections to worker nodes."""
 
-    def __init__(self, state: StateManager):
+    def __init__(self, state: StateManager, workflow_engine=None):
         self.state = state
+        self.workflow_engine = workflow_engine
 
     async def connect(self, websocket: WebSocket, worker_id: str):
         """Accept a new worker connection."""
@@ -65,6 +66,7 @@ class WorkerRegistry:
 
     async def _handle_worker_failure(self, worker_id: str):
         """Handle reassignment of jobs from a failed worker."""
+
         # Find jobs assigned to the failed worker
         failed_jobs = [
             job_id
@@ -72,10 +74,38 @@ class WorkerRegistry:
             if assigned_worker == worker_id
         ]
 
+        if not failed_jobs:
+            return
+
+        logger.warning(
+            f"Worker {worker_id} failed with {len(failed_jobs)} active jobs. Triggering reassignment..."
+        )
+
+        # Get workflow engine to handle job reassignment
+        if not self.workflow_engine:
+            logger.error("Workflow engine not available for job reassignment")
+            return
+
         for job_id in failed_jobs:
+            # Unassign the job from the failed worker
             self.state.unassign_job(job_id)
-            # Add job back to pending queue for reassignment
-            # (Implementation depends on your job queue structure)
-            logger.warning(
-                f"Job {job_id} needs reassignment due to worker {worker_id} failure"
-            )
+
+            # Get the job and reset its state for reassignment
+            job = self.state.get_job(job_id)
+            if job:
+                # Clear worker assignment
+                job.worker_id = None
+
+                # Handle as a failure which will trigger retry logic
+                error = {
+                    "message":
+                    f"Worker {worker_id} disconnected during job execution",
+                    "worker_id": worker_id
+                }
+
+                logger.info(
+                    f"Triggering failure handler for job {job_id} due to worker {worker_id} failure"
+                )
+
+                # Use the workflow engine's failure handler which includes retry logic
+                await self.workflow_engine.handle_job_failure(job_id, error)

@@ -199,6 +199,9 @@ class WorkflowEngine:
                 if self._can_schedule_job(workflow, next_job_id):
                     await self._schedule_job(workflow.id, next_job_id)
 
+        # Try to schedule any pending/retrying jobs that couldn't be scheduled earlier
+        await self._reschedule_pending_jobs(workflow)
+
         # Check if workflow is complete
         await self._check_workflow_completion(workflow)
 
@@ -539,6 +542,22 @@ class WorkflowEngine:
     # ========================================================================
     # Job Status Updates
     # ========================================================================
+
+    async def _reschedule_pending_jobs(self, workflow: Workflow) -> None:
+        """Attempt to reschedule jobs that are in PENDING or RETRYING state.
+        
+        This is called after a job completes to try to schedule jobs that
+        were waiting for available workers.
+        """
+        for job in workflow.jobs:
+            # Only try to reschedule jobs in PENDING or RETRYING state
+            if job.status in [JobStatus.PENDING, JobStatus.RETRYING]:
+                # Check if this job can be scheduled (dependencies met)
+                if self._can_schedule_job(workflow, job.id):
+                    logger.info(
+                        f"Attempting to reschedule {job.status.value} job {job.id}"
+                    )
+                    await self._schedule_job(workflow.id, job.id)
 
     def update_job_status(self, job_id: str, status: str) -> None:
         """Update the status of a job.

@@ -68,13 +68,23 @@ def parse_yaml_workflow(yaml_content: str) -> Workflow:
     if len(workflow_def["jobs"]) == 0:
         raise WorkflowDefinitionError("Workflow must have at least one job")
 
+    # Create workflow ID first (needed for unique job IDs)
+    workflow_id = workflow_def.get("id", str(uuid.uuid4()))
+
     # Parse jobs
     jobs = []
     job_ids = set()
+    # Map from original job ID to unique job ID (workflow_id:job_id)
+    job_id_mapping = {}
 
     for idx, job_def in enumerate(workflow_def["jobs"]):
         try:
-            job = _parse_job(job_def, idx)
+            original_job_id = job_def["id"]
+            # Make job ID unique by prefixing with workflow ID
+            unique_job_id = f"{workflow_id}:{original_job_id}"
+            job_id_mapping[original_job_id] = unique_job_id
+
+            job = _parse_job(job_def, idx, unique_job_id)
 
             # Check for duplicate job IDs
             if job.id in job_ids:
@@ -86,11 +96,12 @@ def parse_yaml_workflow(yaml_content: str) -> Workflow:
             raise WorkflowDefinitionError(
                 f"Error parsing job at index {idx}: {e}")
 
+    # Update job references with unique IDs
+    _update_job_references(jobs, job_id_mapping)
+
     # Validate job references (on_success, on_failure)
     _validate_job_references(jobs, job_ids)
 
-    # Create workflow
-    workflow_id = workflow_def.get("id", str(uuid.uuid4()))
     now = datetime.now(UTC)
 
     workflow = Workflow(id=workflow_id,
@@ -103,12 +114,13 @@ def parse_yaml_workflow(yaml_content: str) -> Workflow:
     return workflow
 
 
-def _parse_job(job_def: Dict[str, Any], index: int) -> Job:
+def _parse_job(job_def: Dict[str, Any], index: int, unique_job_id: str) -> Job:
     """Parse a single job definition.
     
     Args:
         job_def: Dictionary containing job definition
         index: Index of job in the workflow (for error reporting)
+        unique_job_id: Unique job ID (prefixed with workflow ID)
         
     Returns:
         Job: Parsed job
@@ -188,16 +200,38 @@ def _parse_job(job_def: Dict[str, Any], index: int) -> Job:
 
     now = datetime.now(UTC)
 
-    return Job(id=job_def["id"],
-               type=job_type,
-               parameters=parameters,
-               status=JobStatus.PENDING,
-               on_success=on_success,
-               on_failure=on_failure,
-               always_run=always_run,
-               max_retries=max_retries,
-               created_at=now,
-               updated_at=now)
+    return Job(
+        id=unique_job_id,  # Use the unique job ID
+        type=job_type,
+        parameters=parameters,
+        status=JobStatus.PENDING,
+        on_success=on_success,
+        on_failure=on_failure,
+        always_run=always_run,
+        max_retries=max_retries,
+        created_at=now,
+        updated_at=now)
+
+
+def _update_job_references(jobs: List[Job], job_id_mapping: Dict[str, str]):
+    """Update job references (on_success, on_failure) with unique job IDs.
+    
+    Args:
+        jobs: List of parsed jobs with temporary references
+        job_id_mapping: Mapping from original job ID to unique job ID
+    """
+    for job in jobs:
+        # Update on_success references
+        if job.on_success:
+            job.on_success = [
+                job_id_mapping.get(ref, ref) for ref in job.on_success
+            ]
+
+        # Update on_failure references
+        if job.on_failure:
+            job.on_failure = [
+                job_id_mapping.get(ref, ref) for ref in job.on_failure
+            ]
 
 
 def _validate_job_references(jobs: List[Job], job_ids: set):

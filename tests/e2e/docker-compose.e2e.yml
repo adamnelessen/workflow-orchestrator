@@ -1,0 +1,67 @@
+services:
+  coordinator-e2e:
+    build:
+      context: ../..
+      dockerfile: docker/coordinator.Dockerfile
+    ports:
+      - "8001:8000"
+    environment:
+      - LOG_LEVEL=DEBUG
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
+      
+  worker-e2e-1:
+    build:
+      context: ../..
+      dockerfile: docker/worker.Dockerfile
+    environment:
+      - WORKER_ID=e2e-worker-1
+      - COORDINATOR_URL=ws://coordinator-e2e:8000/workers
+      - WORKER_CAPABILITIES=validation,processing,integration,cleanup
+      - LOG_LEVEL=DEBUG
+    depends_on:
+      coordinator-e2e:
+        condition: service_healthy
+        
+  worker-e2e-2:
+    build:
+      context: ../..
+      dockerfile: docker/worker.Dockerfile
+    environment:
+      - WORKER_ID=e2e-worker-2
+      - COORDINATOR_URL=ws://coordinator-e2e:8000/workers
+      - WORKER_CAPABILITIES=validation,processing,integration,cleanup
+      - LOG_LEVEL=DEBUG
+    depends_on:
+      coordinator-e2e:
+        condition: service_healthy
+        
+  worker-e2e-3:
+    build:
+      context: ../..
+      dockerfile: docker/worker.Dockerfile
+    environment:
+      - WORKER_ID=e2e-worker-3
+      - COORDINATOR_URL=ws://coordinator-e2e:8000/workers
+      - WORKER_CAPABILITIES=validation,processing,integration,cleanup
+      - LOG_LEVEL=DEBUG
+    depends_on:
+      coordinator-e2e:
+        condition: service_healthy
+        
+  worker-e2e-4:
+    build:
+      context: ../..
+      dockerfile: docker/worker.Dockerfile
+    environment:
+      - WORKER_ID=e2e-worker-4
+      - COORDINATOR_URL=ws://coordinator-e2e:8000/workers
+      - WORKER_CAPABILITIES=validation,processing,integration,cleanup
+      - LOG_LEVEL=DEBUG
+    depends_on:
+      coordinator-e2e:
+        condition: service_healthy

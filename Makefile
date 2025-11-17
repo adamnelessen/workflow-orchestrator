@@ -1,4 +1,4 @@
-.PHONY: venv install clean test test-unit test-integration test-cov test-watch lint run-coordinator run-worker docker-build docker-up docker-down submit-workflow workflow-demo
+.PHONY: venv install clean test test-unit test-integration test-e2e test-e2e-up test-e2e-down test-e2e-logs test-cov test-watch lint run-coordinator run-worker docker-build docker-up docker-down submit-workflow workflow-demo
 
 # Create virtual environment
 venv:
@@ -40,6 +40,22 @@ test-unit:
 # Run integration tests only
 test-integration:
 	.venv/bin/pytest tests/integration/ -v -m integration
+
+# Run E2E tests (starts and stops docker environment)
+test-e2e:
+	.venv/bin/pytest tests/e2e/ -v -m e2e -s
+
+# Start E2E test environment (without running tests)
+test-e2e-up:
+	docker-compose -f tests/e2e/docker-compose.e2e.yml up -d --build
+
+# Stop E2E test environment
+test-e2e-down:
+	docker-compose -f tests/e2e/docker-compose.e2e.yml down -v
+
+# View E2E environment logs
+test-e2e-logs:
+	docker-compose -f tests/e2e/docker-compose.e2e.yml logs -f
 
 # Run tests with coverage report
 test-cov:

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from coordinator.core.dependencies import get_worker_registry, get_workflow_engine
+from coordinator.core.state_manager import init_state_manager
 from coordinator.api import workflows, workers, health, jobs
 from contextlib import asynccontextmanager
 import asyncio
@@ -17,6 +18,19 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle."""
+    # Initialize state manager with databases
+    database_url = os.getenv("DATABASE_URL")
+    redis_url = os.getenv("REDIS_URL")
+
+    if database_url or redis_url:
+        logger.info(
+            f"Initializing state manager with backends (DB: {bool(database_url)}, Redis: {bool(redis_url)})"
+        )
+        await init_state_manager(database_url=database_url,
+                                 redis_url=redis_url)
+    else:
+        logger.info("Running with in-memory state only")
+
     # Initialize dependencies
     worker_registry = get_worker_registry()
 

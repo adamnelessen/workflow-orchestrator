@@ -2,6 +2,21 @@
 
 A distributed workflow orchestration system with coordinator and worker components.
 
+## 🚀 Quick Start
+
+**New here?** Check out [QUICKSTART.md](QUICKSTART.md) for a step-by-step guide!
+
+```bash
+# One command to get started
+make help
+
+# Setup with databases (recommended)
+make db-init
+
+# Or use the classic setup script
+./setup.sh
+```
+
 ## Setup
 
 ### Quick Start
@@ -71,7 +86,7 @@ make lint
 ### Build and run with Docker Compose
 
 ```bash
-# Build containers
+# Build containers (includes PostgreSQL + Redis)
 make docker-build
 
 # Start services
@@ -82,6 +97,73 @@ make docker-logs
 
 # Stop services
 make docker-down
+```
+
+## Database Support
+
+The orchestrator now supports **PostgreSQL** for persistence and **Redis** for caching:
+
+- **PostgreSQL**: Persistent storage for workflows, jobs, and workers
+- **Redis**: Fast caching, job queues, and distributed coordination
+
+See [DATABASE_SETUP.md](DATABASE_SETUP.md) for detailed configuration.
+
+### Quick Start with Databases
+
+```bash
+# Option 1: One-command setup (recommended)
+make db-init
+
+# Option 2: Run the demo to see persistence in action
+make db-demo
+
+# Option 3: Start everything (coordinator + workers + databases)
+make docker-up
+```
+
+### Database Commands
+
+```bash
+# Start only PostgreSQL + Redis (without coordinator/workers)
+make docker-db-only
+
+# Initialize database schema
+make db-init
+
+# Run database persistence demo
+make db-demo
+
+# Run database-specific tests
+make db-test
+```
+
+### Manual Database Setup
+
+If you prefer manual setup:
+
+```bash
+# Install dependencies
+pip install -e .
+
+# Start databases
+docker-compose up -d postgres redis
+
+# Initialize PostgreSQL schema and verify Redis
+python scripts/init_db.py
+
+# Run coordinator with databases
+export DATABASE_URL=postgresql+asyncpg://workflow:workflow_dev@localhost:5432/workflow_orchestrator
+export REDIS_URL=redis://localhost:6379/0
+python -m coordinator.main
+```
+
+### Run Without Databases
+
+The system falls back to in-memory storage when database URLs are not set:
+
+```bash
+# No DATABASE_URL or REDIS_URL needed
+python -m coordinator.main
 ```
 
 ## Project Structure

@@ -1,10 +1,46 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=workflow_orchestrator
+      - POSTGRES_USER=workflow
+      - POSTGRES_PASSWORD=workflow_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   coordinator:
     build:
       context: .
       dockerfile: docker/coordinator.Dockerfile
     ports:
       - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://workflow:workflow_dev@postgres:5432/workflow_orchestrator
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
       
   worker-1:
     build:
@@ -38,3 +74,7 @@ services:
       - WORKER_ID=worker-4
       - COORDINATOR_URL=ws://coordinator:8000/workers
       - WORKER_CAPABILITIES=validation,processing,integration,cleanup
+
+volumes:
+  postgres_data:
+  redis_data:

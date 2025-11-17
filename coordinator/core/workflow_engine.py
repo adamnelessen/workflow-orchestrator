@@ -432,6 +432,9 @@ class WorkflowEngine:
         predecessor must have completed successfully. For jobs in on_failure paths,
         their predecessor must have failed.
         
+        IMPORTANT: If multiple jobs reference this job in their on_success/on_failure,
+        ALL of them must complete/fail before this job can be scheduled.
+        
         Args:
             workflow: The workflow
             job_id: The job to check
@@ -455,36 +458,54 @@ class WorkflowEngine:
         if job.always_run:
             return True
 
-        # Find which jobs reference this job in their on_success or on_failure
+        # Find ALL jobs that reference this job in their on_success or on_failure
         # A job can be scheduled if:
-        # 1. It's referenced in on_success of a completed job, OR
-        # 2. It's referenced in on_failure of a failed job
-        can_schedule = False
-        has_predecessors = False
+        # 1. ALL jobs that reference it in on_success have completed successfully, OR
+        # 2. ALL jobs that reference it in on_failure have failed
+        on_success_predecessors = []
+        on_failure_predecessors = []
 
         for predecessor_job in workflow.jobs:
             # Check if this job is in predecessor's on_success
             if predecessor_job.on_success and job_id in predecessor_job.on_success:
-                has_predecessors = True
-                if predecessor_job.id in workflow.completed_jobs:
-                    can_schedule = True
-                    break
+                on_success_predecessors.append(predecessor_job.id)
 
             # Check if this job is in predecessor's on_failure
             if predecessor_job.on_failure and job_id in predecessor_job.on_failure:
-                has_predecessors = True
-                if predecessor_job.id in workflow.failed_jobs:
-                    can_schedule = True
-                    break
+                on_failure_predecessors.append(predecessor_job.id)
+
+        has_predecessors = bool(on_success_predecessors
+                                or on_failure_predecessors)
 
         # If no predecessors found, it's an entry job and can be scheduled
         if not has_predecessors:
-            can_schedule = True
+            return True
+
+        # Check if ALL on_success predecessors have completed
+        if on_success_predecessors:
+            all_success_complete = all(pred_id in workflow.completed_jobs
+                                       for pred_id in on_success_predecessors)
+            if all_success_complete:
+                logger.debug(
+                    f"Can schedule job {job_id}: all {len(on_success_predecessors)} on_success predecessors completed"
+                )
+                return True
+
+        # Check if ALL on_failure predecessors have failed
+        if on_failure_predecessors:
+            all_failure_complete = all(pred_id in workflow.failed_jobs
+                                       for pred_id in on_failure_predecessors)
+            if all_failure_complete:
+                logger.debug(
+                    f"Can schedule job {job_id}: all {len(on_failure_predecessors)} on_failure predecessors failed"
+                )
+                return True
 
         logger.debug(
-            f"Can schedule job {job_id}: {can_schedule} (has_predecessors: {has_predecessors})"
+            f"Cannot schedule job {job_id}: waiting for predecessors "
+            f"(on_success: {len(on_success_predecessors)}, on_failure: {len(on_failure_predecessors)})"
         )
-        return can_schedule
+        return False
 
     def _find_workflow_for_job(self, job_id: str) -> Optional[Workflow]:
         """Find the workflow that contains a given job."""

@@ -285,11 +285,17 @@ class WorkflowEngine:
 
         for job in workflow.jobs:
             if job.id not in workflow.completed_jobs and job.id not in workflow.failed_jobs:
+                # Skip always_run jobs - they're handled separately in _run_always_run_jobs
+                if job.always_run:
+                    continue
                 if self._can_schedule_job(workflow, job.id):
                     can_schedule_more = True
                     break
 
         if not can_schedule_more:
+            # Mark unexecuted jobs as skipped (e.g., on_failure jobs in successful workflows)
+            await self._mark_skipped_jobs(workflow)
+
             # Run always_run jobs before completing
             await self._run_always_run_jobs(workflow)
 
@@ -334,6 +340,35 @@ class WorkflowEngine:
             )
             for job in always_run_jobs:
                 await self._schedule_job(workflow.id, job.id)
+
+    async def _mark_skipped_jobs(self, workflow: Workflow) -> None:
+        """Mark jobs that were not executed as SKIPPED.
+        
+        This typically includes on_failure jobs in successful workflows that
+        never ran because their triggering condition was never met.
+        """
+        for job in workflow.jobs:
+            # Skip jobs that already have a final status
+            if job.id in workflow.completed_jobs or job.id in workflow.failed_jobs:
+                continue
+
+            # Skip always_run jobs - they're handled separately
+            if job.always_run:
+                continue
+
+            # Skip jobs that are currently running
+            if job.status == JobStatus.RUNNING:
+                continue
+
+            # Check if this job is only reachable via on_failure paths
+            # If the job is in PENDING state and can't be scheduled, it should be marked as skipped
+            if job.status == JobStatus.PENDING and not self._can_schedule_job(
+                    workflow, job.id):
+                job.status = JobStatus.SKIPPED
+                job.updated_at = datetime.now(UTC)
+                logger.info(
+                    f"Marked job {job.id} as SKIPPED in workflow {workflow.id}"
+                )
 
     # ========================================================================
     # Job Scheduling Helpers
@@ -389,6 +424,11 @@ class WorkflowEngine:
     def _can_schedule_job(self, workflow: Workflow, job_id: str) -> bool:
         """Check if a job can be scheduled (all dependencies met).
         
+        This method checks if a job's dependencies are satisfied based on the 
+        actual workflow execution state. For jobs in on_success paths, their
+        predecessor must have completed successfully. For jobs in on_failure paths,
+        their predecessor must have failed.
+        
         Args:
             workflow: The workflow
             job_id: The job to check
@@ -412,15 +452,36 @@ class WorkflowEngine:
         if job.always_run:
             return True
 
-        # Check dependencies are met
-        dependencies = self._dependency_cache.get(workflow.id, {})
-        required_jobs = dependencies.get(job_id, set())
+        # Find which jobs reference this job in their on_success or on_failure
+        # A job can be scheduled if:
+        # 1. It's referenced in on_success of a completed job, OR
+        # 2. It's referenced in on_failure of a failed job
+        can_schedule = False
+        has_predecessors = False
 
-        for dep_job_id in required_jobs:
-            if dep_job_id not in workflow.completed_jobs:
-                return False
+        for predecessor_job in workflow.jobs:
+            # Check if this job is in predecessor's on_success
+            if predecessor_job.on_success and job_id in predecessor_job.on_success:
+                has_predecessors = True
+                if predecessor_job.id in workflow.completed_jobs:
+                    can_schedule = True
+                    break
 
-        return True
+            # Check if this job is in predecessor's on_failure
+            if predecessor_job.on_failure and job_id in predecessor_job.on_failure:
+                has_predecessors = True
+                if predecessor_job.id in workflow.failed_jobs:
+                    can_schedule = True
+                    break
+
+        # If no predecessors found, it's an entry job and can be scheduled
+        if not has_predecessors:
+            can_schedule = True
+
+        logger.debug(
+            f"Can schedule job {job_id}: {can_schedule} (has_predecessors: {has_predecessors})"
+        )
+        return can_schedule
 
     def _find_workflow_for_job(self, job_id: str) -> Optional[Workflow]:
         """Find the workflow that contains a given job."""

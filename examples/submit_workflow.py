@@ -18,8 +18,9 @@ def main():
     parser.add_argument(
         "workflow_file",
         nargs="?",
-        default="deployment-pipeline.yaml",
-        help="Workflow definition filename (default: deployment-pipeline.yaml)"
+        default="data-processing-pipeline.yaml",
+        help=
+        "Workflow definition filename (default: data-processing-pipeline.yaml)"
     )
     args = parser.parse_args()
 

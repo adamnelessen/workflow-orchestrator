@@ -30,3 +30,11 @@ services:
       - WORKER_ID=worker-3
       - COORDINATOR_URL=ws://coordinator:8000/workers
       - WORKER_CAPABILITIES=validation,processing,integration,cleanup
+  worker-4:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    environment:
+      - WORKER_ID=worker-4
+      - COORDINATOR_URL=ws://coordinator:8000/workers
+      - WORKER_CAPABILITIES=validation,processing,integration,cleanup

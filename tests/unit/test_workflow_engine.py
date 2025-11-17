@@ -405,3 +405,76 @@ def test_update_job_status(workflow_engine: WorkflowEngine,
 
     job = state_manager.get_job("job1")
     assert job.status == JobStatus.RUNNING
+
+
+# ============================================================================
+# Skipped Jobs Tests
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_on_failure_jobs_marked_as_skipped(
+        workflow_engine: WorkflowEngine, state_manager: StateManager) -> None:
+    """Test that on_failure jobs are marked as SKIPPED when workflow succeeds"""
+    now = datetime.now(UTC)
+
+    jobs = [
+        Job(id="main-job",
+            type=JobType.PROCESSING,
+            parameters={},
+            on_success=["success-handler"],
+            on_failure=["failure-handler"],
+            created_at=now,
+            updated_at=now),
+        Job(id="success-handler",
+            type=JobType.INTEGRATION,
+            parameters={},
+            created_at=now,
+            updated_at=now),
+        Job(id="failure-handler",
+            type=JobType.CLEANUP,
+            parameters={},
+            created_at=now,
+            updated_at=now),
+    ]
+
+    workflow = Workflow(id="skip-test",
+                        name="Skip Test",
+                        jobs=jobs,
+                        created_at=now,
+                        updated_at=now)
+
+    state_manager.add_workflow(workflow)
+    for job in workflow.jobs:
+        state_manager.add_job(job)
+
+    # Mock scheduler to simulate successful assignment
+    workflow_engine.scheduler.assign_job = AsyncMock(return_value="worker1")
+
+    # Start workflow - should schedule main-job
+    await workflow_engine.start_workflow(workflow.id)
+    assert workflow.status == WorkflowStatus.RUNNING
+    assert "main-job" in workflow.current_jobs
+
+    # Complete main-job successfully - should schedule success-handler, not failure-handler
+    await workflow_engine.handle_job_completion("main-job",
+                                                {"status": "success"})
+    assert "success-handler" in workflow.current_jobs
+    assert "failure-handler" not in workflow.current_jobs
+
+    # failure-handler should still be PENDING at this point
+    failure_job = state_manager.get_job("failure-handler")
+    assert failure_job.status == JobStatus.PENDING
+
+    # Complete success-handler
+    await workflow_engine.handle_job_completion("success-handler",
+                                                {"status": "success"})
+
+    # Workflow should be completed
+    assert workflow.status == WorkflowStatus.COMPLETED
+
+    # failure-handler should now be SKIPPED (not PENDING)
+    failure_job = state_manager.get_job("failure-handler")
+    assert failure_job.status == JobStatus.SKIPPED
+    assert "failure-handler" not in workflow.completed_jobs
+    assert "failure-handler" not in workflow.failed_jobs

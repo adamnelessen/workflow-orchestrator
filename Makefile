@@ -72,8 +72,9 @@ docker-logs:
 	docker-compose logs -f
 
 # Example workflow scripts (requires coordinator and workers to be running)
+# Usage: make submit-workflow [WORKFLOW=data-processing-pipeline.yaml]
 submit-workflow:
-	.venv/bin/python -m examples.submit_workflow
+	.venv/bin/python -m examples.submit_workflow $(WORKFLOW)
 
 workflow-demo:
 	.venv/bin/python -m examples.workflow_demo

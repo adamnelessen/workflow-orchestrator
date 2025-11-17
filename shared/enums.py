@@ -9,6 +9,7 @@ class JobStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     RETRYING = "retrying"
+    SKIPPED = "skipped"
 
 
 class JobType(str, Enum):

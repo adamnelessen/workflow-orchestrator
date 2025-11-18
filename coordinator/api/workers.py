@@ -73,14 +73,14 @@ async def websocket_endpoint(websocket: WebSocket, worker_id: str):
                     await workflow_engine.handle_job_failure(
                         msg.job_id, msg.result or {})
                 else:
-                    workflow_engine.update_job_status(msg.job_id, msg.status)
+                    await workflow_engine.update_job_status(msg.job_id, msg.status)
 
                 logger.info(f"Job {msg.job_id} status update: {msg.status}")
 
             elif message_type == MessageType.READY.value:
                 # Worker is ready for new jobs
                 msg = ReadyMessage(**data)
-                worker = state.get_worker(worker_id)
+                worker = await state.get_worker(worker_id)
                 if worker is not None:
                     worker.status = "idle"
 

@@ -10,7 +10,7 @@ async def init_databases():
     """Initialize PostgreSQL and Redis connections"""
     database_url = os.getenv(
         "DATABASE_URL",
-        "postgresql+asyncpg://workflow:workflow_dev@localhost:5432/workflow_orchestrator"
+        "postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator"
     )
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 

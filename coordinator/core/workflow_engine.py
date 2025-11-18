@@ -33,7 +33,7 @@ class WorkflowEngine:
         Returns:
             bool: True if workflow started successfully, False otherwise
         """
-        workflow = self.state.get_workflow(workflow_id)
+        workflow = await self.state.get_workflow(workflow_id)
         if not workflow:
             logger.error(f"Workflow {workflow_id} not found")
             return False
@@ -165,7 +165,7 @@ class WorkflowEngine:
             job_id: The completed job ID
             result: Job execution result
         """
-        job = self.state.get_job(job_id)
+        job = await self.state.get_job(job_id)
         if not job:
             logger.error(f"Job {job_id} not found")
             return
@@ -216,7 +216,7 @@ class WorkflowEngine:
             job_id: The failed job ID
             error: Error information
         """
-        job = self.state.get_job(job_id)
+        job = await self.state.get_job(job_id)
         if not job:
             logger.error(f"Job {job_id} not found")
             return
@@ -387,8 +387,8 @@ class WorkflowEngine:
         Returns:
             bool: True if job was scheduled successfully
         """
-        workflow = self.state.get_workflow(workflow_id)
-        job = self.state.get_job(job_id)
+        workflow = await self.state.get_workflow(workflow_id)
+        job = await self.state.get_job(job_id)
 
         if not workflow or not job:
             logger.error(f"Workflow {workflow_id} or job {job_id} not found")
@@ -527,7 +527,7 @@ class WorkflowEngine:
         Returns:
             bool: True if workflow was cancelled successfully
         """
-        workflow = self.state.get_workflow(workflow_id)
+        workflow = await self.state.get_workflow(workflow_id)
         if not workflow:
             logger.error(f"Workflow {workflow_id} not found")
             return False
@@ -544,7 +544,7 @@ class WorkflowEngine:
 
         # Cancel running jobs (mark as failed)
         for job_id in workflow.current_jobs:
-            job = self.state.get_job(job_id)
+            job = await self.state.get_job(job_id)
             if job and job.status == JobStatus.RUNNING:
                 job.status = JobStatus.FAILED
                 job.error = "Workflow cancelled"
@@ -580,14 +580,14 @@ class WorkflowEngine:
                     )
                     await self._schedule_job(workflow.id, job.id)
 
-    def update_job_status(self, job_id: str, status: str) -> None:
+    async def update_job_status(self, job_id: str, status: str) -> None:
         """Update the status of a job.
         
         Args:
             job_id: The job ID
             status: The new status (as string)
         """
-        job = self.state.get_job(job_id)
+        job = await self.state.get_job(job_id)
         if not job:
             logger.error(f"Job {job_id} not found")
             return

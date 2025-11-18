@@ -163,3 +163,9 @@ class PostgresDB:
                 delete(JobAssignmentModel).where(
                     JobAssignmentModel.job_id == job_id))
             await session.commit()
+
+    async def list_all_assignments(self) -> List[JobAssignmentModel]:
+        """List all job assignments"""
+        async with self.async_session() as session:
+            result = await session.execute(select(JobAssignmentModel))
+            return list(result.scalars().all())

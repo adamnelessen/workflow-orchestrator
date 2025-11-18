@@ -1,7 +1,7 @@
 """SQLAlchemy ORM models for persistent storage"""
 from datetime import datetime, UTC
 from sqlalchemy import Column, String, DateTime, JSON, Integer, Boolean, Enum as SQLEnum
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from shared.enums import JobStatus, JobType, WorkflowStatus, WorkerStatus
 
 Base = declarative_base()

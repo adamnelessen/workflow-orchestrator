@@ -20,7 +20,7 @@ class RedisCache:
     async def close(self):
         """Close Redis connection"""
         if self.client:
-            await self.client.close()
+            await self.client.aclose()
 
     # Job queue operations
     async def push_job(self, job_id: str, priority: int = 0) -> None:

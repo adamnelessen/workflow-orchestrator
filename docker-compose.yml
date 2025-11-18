@@ -10,7 +10,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U workflow"]
+      test: ["CMD-SHELL", "pg_isready -U workflow -d workflow_orchestrator"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -34,7 +34,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://workflow:workflow_dev@postgres:5432/workflow_orchestrator
+      - DATABASE_URL=postgresql+psycopg://workflow:workflow_dev@postgres:5432/workflow_orchestrator
       - REDIS_URL=redis://redis:6379/0
     depends_on:
       postgres:

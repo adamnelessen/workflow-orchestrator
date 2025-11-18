@@ -56,7 +56,7 @@ make docker-db-only
 python scripts/init_db.py
 
 # Run coordinator
-export DATABASE_URL=postgresql+asyncpg://workflow:workflow_dev@localhost:5432/workflow_orchestrator
+export DATABASE_URL=postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator
 export REDIS_URL=redis://localhost:6379/0
 python -m coordinator.main
 ```
@@ -139,7 +139,7 @@ await state.add_workflow_async(workflow)
 
 ```bash
 # PostgreSQL
-DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/dbname
+DATABASE_URL=postgresql+psycopg://user:pass@host:5432/dbname
 
 # Redis
 REDIS_URL=redis://host:6379/0
@@ -149,7 +149,7 @@ REDIS_URL=redis://host:6379/0
 
 ```yaml
 environment:
-  - DATABASE_URL=postgresql+asyncpg://workflow:workflow_prod@postgres:5432/workflow_orchestrator
+  - DATABASE_URL=postgresql+psycopg://workflow:workflow_prod@postgres:5432/workflow_orchestrator
   - REDIS_URL=redis://redis:6379/0
 ```
 

@@ -35,9 +35,9 @@ class TestWorkerRegistry:
         """Test worker disconnection"""
         # Connect first
         state_manager.active_connections["worker-1"] = mock_websocket
-        worker = state_manager.get_worker("worker-1")
+        worker = await state_manager.get_worker("worker-1")
         if worker:
-            state_manager.add_worker(worker)
+            await state_manager.add_worker(worker)
 
         # Disconnect
         await registry.disconnect("worker-1")
@@ -51,7 +51,7 @@ class TestWorkerRegistry:
 
         await registry.register_worker("worker-1", capabilities)
 
-        worker = state_manager.get_worker("worker-1")
+        worker = await state_manager.get_worker("worker-1")
         assert worker is not None
         assert worker.id == "worker-1"
         assert worker.capabilities == capabilities
@@ -63,7 +63,7 @@ class TestWorkerRegistry:
         # Setup worker
         worker = worker_factory(worker_id="worker-1")
         old_heartbeat = worker.last_heartbeat
-        state_manager.add_worker(worker)
+        await state_manager.add_worker(worker)
 
         # Wait a moment and send heartbeat
         import asyncio
@@ -71,7 +71,7 @@ class TestWorkerRegistry:
         await registry.handle_heartbeat("worker-1")
 
         # Check heartbeat updated
-        updated_worker = state_manager.get_worker("worker-1")
+        updated_worker = await state_manager.get_worker("worker-1")
         assert updated_worker.last_heartbeat > old_heartbeat
 
     async def test_handle_heartbeat_nonexistent_worker(

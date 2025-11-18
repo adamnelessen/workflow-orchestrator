@@ -46,7 +46,7 @@ INFO:__main__:Coordinator started - WebSocket server ready
 ### ✅ Test Database Mode
 ```bash
 # Set environment variables
-export DATABASE_URL=postgresql+asyncpg://workflow:workflow_dev@localhost:5432/workflow_orchestrator
+export DATABASE_URL=postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator
 export REDIS_URL=redis://localhost:6379/0
 
 # Start coordinator

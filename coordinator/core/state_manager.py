@@ -3,16 +3,8 @@ from typing import Dict, Optional
 from shared.models import Workflow, Worker, Job
 import asyncio
 from fastapi import WebSocket
-
-# Optional imports for database backends
-try:
-    from coordinator.db.postgres import PostgresDB
-    from coordinator.db.redis import RedisCache
-    HAS_DB = True
-except ImportError:
-    HAS_DB = False
-    PostgresDB = None
-    RedisCache = None
+from coordinator.db.postgres import PostgresDB
+from coordinator.db.redis import RedisCache
 
 
 class StateManager:
@@ -288,48 +280,72 @@ class StateManager:
         """Clear all job assignments"""
         self.job_assignments.clear()
 
-    # Synchronous compatibility methods (for existing code that can't use async)
-    def get_workflow(self, workflow_id: str) -> Optional[Workflow]:
-        """Synchronous get workflow (memory only for now)"""
-        return self.workflows.get(workflow_id)
+    async def _rebuild_from_db(self) -> None:
+        """Rebuild in-memory cache from PostgreSQL after restart"""
+        if not self.postgres:
+            return
 
-    def add_workflow(self, workflow: Workflow) -> None:
-        """Synchronous add workflow (memory only for now)"""
-        self.workflows[workflow.id] = workflow
-        for job in workflow.jobs:
-            self.jobs[job.id] = job
+        from shared.enums import JobType
 
-    def get_job(self, job_id: str) -> Optional[Job]:
-        """Synchronous get job (memory only for now)"""
-        return self.jobs.get(job_id)
+        # Load all workflows with their jobs
+        workflow_models = await self.postgres.list_workflows()
+        for wf_model in workflow_models:
+            # Get all jobs for this workflow
+            job_models = await self.postgres.list_jobs_by_workflow(wf_model.id)
+            jobs = [
+                Job(
+                    id=j.id,
+                    type=j.type,
+                    parameters=j.parameters,
+                    status=j.status,
+                    worker_id=j.worker_id,
+                    result=j.result,
+                    error=j.error,
+                    retry_count=j.retry_count,
+                    max_retries=j.max_retries,
+                    on_success=j.on_success,
+                    on_failure=j.on_failure,
+                    always_run=j.always_run,
+                    created_at=j.created_at,
+                    updated_at=j.updated_at,
+                ) for j in job_models
+            ]
 
-    def add_job(self, job: Job) -> None:
-        """Synchronous add job (memory only for now)"""
-        self.jobs[job.id] = job
+            # Reconstruct workflow
+            workflow = Workflow(
+                id=wf_model.id,
+                name=wf_model.name,
+                status=wf_model.status,
+                jobs=jobs,
+                current_jobs=wf_model.current_jobs,
+                completed_jobs=wf_model.completed_jobs,
+                failed_jobs=wf_model.failed_jobs,
+                created_at=wf_model.created_at,
+                updated_at=wf_model.updated_at,
+            )
 
-    def get_worker(self, worker_id: str) -> Optional[Worker]:
-        """Synchronous get worker (memory only for now)"""
-        return self.workers.get(worker_id)
+            # Add to memory
+            self.workflows[workflow.id] = workflow
+            for job in jobs:
+                self.jobs[job.id] = job
 
-    def add_worker(self, worker: Worker) -> None:
-        """Synchronous add worker (memory only for now)"""
-        self.workers[worker.id] = worker
+        # Load all workers
+        worker_models = await self.postgres.list_workers()
+        for w_model in worker_models:
+            worker = Worker(
+                id=w_model.id,
+                status=w_model.status,
+                capabilities=[JobType(cap) for cap in w_model.capabilities],
+                current_job_id=w_model.current_job_id,
+                last_heartbeat=w_model.last_heartbeat,
+                registered_at=w_model.registered_at,
+            )
+            self.workers[worker.id] = worker
 
-    def remove_worker(self, worker_id: str) -> None:
-        """Synchronous remove worker (memory only for now)"""
-        self.workers.pop(worker_id, None)
-
-    def assign_job(self, job_id: str, worker_id: str) -> None:
-        """Synchronous assign job (memory only for now)"""
-        self.job_assignments[job_id] = worker_id
-
-    def get_job_worker(self, job_id: str) -> Optional[str]:
-        """Synchronous get job worker (memory only for now)"""
-        return self.job_assignments.get(job_id)
-
-    def unassign_job(self, job_id: str) -> None:
-        """Synchronous unassign job (memory only for now)"""
-        self.job_assignments.pop(job_id, None)
+        # Load all job assignments
+        assignment_models = await self.postgres.list_all_assignments()
+        for assignment in assignment_models:
+            self.job_assignments[assignment.job_id] = assignment.worker_id
 
     # Async methods (for new code or when DB persistence is needed)
     async def get_workflow_async(self, workflow_id: str) -> Optional[Workflow]:
@@ -431,13 +447,18 @@ async def init_state_manager(database_url: Optional[str] = None,
     postgres = None
     redis_cache = None
 
-    if database_url and HAS_DB:
+    if database_url:
         postgres = PostgresDB(database_url)
         await postgres.init_db()
 
-    if redis_url and HAS_DB:
+    if redis_url:
         redis_cache = RedisCache(redis_url)
         await redis_cache.connect()
 
     _state = StateManager(postgres=postgres, redis=redis_cache)
+    
+    # Rebuild in-memory cache from database after restart
+    if postgres:
+        await _state._rebuild_from_db()
+    
     return _state

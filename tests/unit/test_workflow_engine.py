@@ -1,4 +1,5 @@
 """Unit tests for WorkflowEngine"""
+import asyncio
 import pytest
 from datetime import datetime, UTC
 from unittest.mock import AsyncMock
@@ -13,6 +14,7 @@ from shared.enums import JobType, JobStatus, WorkflowStatus
 # ============================================================================
 
 
+@pytest.mark.unit
 def test_build_dependency_graph_simple(workflow_engine: WorkflowEngine,
                                        simple_workflow: Workflow) -> None:
     """Test building dependency graph for simple linear workflow"""
@@ -24,6 +26,7 @@ def test_build_dependency_graph_simple(workflow_engine: WorkflowEngine,
     assert deps["job2"] == {"job1"}
 
 
+@pytest.mark.unit
 def test_build_dependency_graph_branching(
         workflow_engine: WorkflowEngine, branching_workflow: Workflow) -> None:
     """Test building dependency graph for branching workflow"""
@@ -36,6 +39,7 @@ def test_build_dependency_graph_branching(
     assert deps["job3"] == {"job1"}
 
 
+@pytest.mark.unit
 def test_validate_circular_dependency(workflow_engine: WorkflowEngine) -> None:
     """Test detection of circular dependencies"""
     now = datetime.now(UTC)
@@ -64,6 +68,7 @@ def test_validate_circular_dependency(workflow_engine: WorkflowEngine) -> None:
         workflow_engine._build_dependency_graph(workflow)
 
 
+@pytest.mark.unit
 def test_validate_invalid_job_reference(
         workflow_engine: WorkflowEngine) -> None:
     """Test detection of invalid job references"""
@@ -87,6 +92,7 @@ def test_validate_invalid_job_reference(
         workflow_engine._build_dependency_graph(workflow)
 
 
+@pytest.mark.unit
 def test_find_entry_jobs(workflow_engine: WorkflowEngine,
                          simple_workflow: Workflow) -> None:
     """Test finding entry jobs (jobs with no dependencies)"""
@@ -101,6 +107,8 @@ def test_find_entry_jobs(workflow_engine: WorkflowEngine,
 # ============================================================================
 
 
+@pytest.mark.unit
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_start_workflow_success(workflow_engine: WorkflowEngine,
                                       state_manager: StateManager,
@@ -108,9 +116,9 @@ async def test_start_workflow_success(workflow_engine: WorkflowEngine,
                                       mock_worker: Worker) -> None:
     """Test starting a workflow successfully"""
     # Add workflow and jobs to state
-    state_manager.add_workflow(simple_workflow)
+    await state_manager.add_workflow(simple_workflow)
     for job in simple_workflow.jobs:
-        state_manager.add_job(job)
+        await state_manager.add_job(job)
 
     # Mock scheduler to simulate successful assignment
     workflow_engine.scheduler.assign_job = AsyncMock(return_value="worker1")
@@ -122,6 +130,8 @@ async def test_start_workflow_success(workflow_engine: WorkflowEngine,
     assert "job1" in simple_workflow.current_jobs
 
 
+@pytest.mark.unit
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_start_workflow_not_found(
         workflow_engine: WorkflowEngine) -> None:
@@ -130,13 +140,15 @@ async def test_start_workflow_not_found(
     assert success is False
 
 
+@pytest.mark.unit
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_start_workflow_already_running(
         workflow_engine: WorkflowEngine, state_manager: StateManager,
         simple_workflow: Workflow) -> None:
     """Test starting a workflow that's already running"""
     simple_workflow.status = WorkflowStatus.RUNNING
-    state_manager.add_workflow(simple_workflow)
+    await state_manager.add_workflow(simple_workflow)
 
     success = await workflow_engine.start_workflow(simple_workflow.id)
     assert success is False
@@ -147,6 +159,7 @@ async def test_start_workflow_already_running(
 # ============================================================================
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_handle_job_completion_triggers_next(
         workflow_engine: WorkflowEngine, state_manager: StateManager,
@@ -157,9 +170,9 @@ async def test_handle_job_completion_triggers_next(
     simple_workflow.current_jobs = ["job1"]
     simple_workflow.jobs[0].status = JobStatus.RUNNING
 
-    state_manager.add_workflow(simple_workflow)
+    await state_manager.add_workflow(simple_workflow)
     for job in simple_workflow.jobs:
-        state_manager.add_job(job)
+        await state_manager.add_job(job)
 
     # Build dependency cache
     workflow_engine._dependency_cache[simple_workflow.id] = \
@@ -172,7 +185,7 @@ async def test_handle_job_completion_triggers_next(
     await workflow_engine.handle_job_completion("job1", {"result": "success"})
 
     # Check job1 is marked completed
-    job1 = state_manager.get_job("job1")
+    job1 = await state_manager.get_job("job1")
     assert job1.status == JobStatus.COMPLETED
     assert "job1" in simple_workflow.completed_jobs
 
@@ -180,6 +193,7 @@ async def test_handle_job_completion_triggers_next(
     assert workflow_engine.scheduler.assign_job.called
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_handle_job_completion_workflow_completes(
         workflow_engine: WorkflowEngine, state_manager: StateManager,
@@ -192,9 +206,9 @@ async def test_handle_job_completion_workflow_completes(
     simple_workflow.jobs[0].status = JobStatus.COMPLETED
     simple_workflow.jobs[1].status = JobStatus.RUNNING
 
-    state_manager.add_workflow(simple_workflow)
+    await state_manager.add_workflow(simple_workflow)
     for job in simple_workflow.jobs:
-        state_manager.add_job(job)
+        await state_manager.add_job(job)
 
     workflow_engine._dependency_cache[simple_workflow.id] = \
         workflow_engine._build_dependency_graph(simple_workflow)
@@ -213,6 +227,7 @@ async def test_handle_job_completion_workflow_completes(
 # ============================================================================
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_handle_job_failure_retry(workflow_engine: WorkflowEngine,
                                         state_manager: StateManager,
@@ -226,9 +241,9 @@ async def test_handle_job_failure_retry(workflow_engine: WorkflowEngine,
     simple_workflow.jobs[0].max_retries = 3
     simple_workflow.jobs[0].retry_count = 0
 
-    state_manager.add_workflow(simple_workflow)
+    await state_manager.add_workflow(simple_workflow)
     for job in simple_workflow.jobs:
-        state_manager.add_job(job)
+        await state_manager.add_job(job)
 
     workflow_engine._dependency_cache[simple_workflow.id] = \
         workflow_engine._build_dependency_graph(simple_workflow)
@@ -240,12 +255,13 @@ async def test_handle_job_failure_retry(workflow_engine: WorkflowEngine,
     await workflow_engine.handle_job_failure("job1", {"message": "Test error"})
 
     # Check job was retried
-    job1 = state_manager.get_job("job1")
+    job1 = await state_manager.get_job("job1")
     assert job1.status == JobStatus.RUNNING  # Rescheduled, so back to RUNNING
     assert job1.retry_count == 1
     assert workflow_engine.scheduler.assign_job.called
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_handle_job_failure_max_retries(workflow_engine: WorkflowEngine,
                                               state_manager: StateManager,
@@ -259,9 +275,9 @@ async def test_handle_job_failure_max_retries(workflow_engine: WorkflowEngine,
     branching_workflow.jobs[0].max_retries = 2
     branching_workflow.jobs[0].retry_count = 2  # Already at max
 
-    state_manager.add_workflow(branching_workflow)
+    await state_manager.add_workflow(branching_workflow)
     for job in branching_workflow.jobs:
-        state_manager.add_job(job)
+        await state_manager.add_job(job)
 
     workflow_engine._dependency_cache[branching_workflow.id] = \
         workflow_engine._build_dependency_graph(branching_workflow)
@@ -273,7 +289,7 @@ async def test_handle_job_failure_max_retries(workflow_engine: WorkflowEngine,
     await workflow_engine.handle_job_failure("job1", {"message": "Test error"})
 
     # Check job is failed
-    job1 = state_manager.get_job("job1")
+    job1 = await state_manager.get_job("job1")
     assert job1.status == JobStatus.FAILED
     assert "job1" in branching_workflow.failed_jobs
 
@@ -286,6 +302,7 @@ async def test_handle_job_failure_max_retries(workflow_engine: WorkflowEngine,
 # ============================================================================
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_always_run_jobs_on_failure(workflow_engine: WorkflowEngine,
                                           state_manager: StateManager,
@@ -297,9 +314,9 @@ async def test_always_run_jobs_on_failure(workflow_engine: WorkflowEngine,
     branching_workflow.failed_jobs = ["job1"]
     branching_workflow.jobs[0].status = JobStatus.FAILED
 
-    state_manager.add_workflow(branching_workflow)
+    await state_manager.add_workflow(branching_workflow)
     for job in branching_workflow.jobs:
-        state_manager.add_job(job)
+        await state_manager.add_job(job)
 
     workflow_engine._dependency_cache[branching_workflow.id] = \
         workflow_engine._build_dependency_graph(branching_workflow)
@@ -319,6 +336,7 @@ async def test_always_run_jobs_on_failure(workflow_engine: WorkflowEngine,
 # ============================================================================
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_cancel_workflow(workflow_engine: WorkflowEngine,
                                state_manager: StateManager,
@@ -330,9 +348,9 @@ async def test_cancel_workflow(workflow_engine: WorkflowEngine,
     simple_workflow.current_jobs = ["job1"]
     simple_workflow.jobs[0].status = JobStatus.RUNNING
 
-    state_manager.add_workflow(simple_workflow)
+    await state_manager.add_workflow(simple_workflow)
     for job in simple_workflow.jobs:
-        state_manager.add_job(job)
+        await state_manager.add_job(job)
 
     workflow_engine._dependency_cache[simple_workflow.id] = \
         workflow_engine._build_dependency_graph(simple_workflow)
@@ -344,7 +362,7 @@ async def test_cancel_workflow(workflow_engine: WorkflowEngine,
     assert simple_workflow.status == WorkflowStatus.CANCELLED
 
     # Running jobs should be marked as failed
-    job1 = state_manager.get_job("job1")
+    job1 = await state_manager.get_job("job1")
     assert job1.status == JobStatus.FAILED
     assert job1.error == "Workflow cancelled"
 
@@ -354,13 +372,15 @@ async def test_cancel_workflow(workflow_engine: WorkflowEngine,
 # ============================================================================
 
 
-def test_can_schedule_job(workflow_engine: WorkflowEngine,
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_can_schedule_job(workflow_engine: WorkflowEngine,
                           state_manager: StateManager,
                           simple_workflow: Workflow) -> None:
     """Test checking if a job can be scheduled"""
-    state_manager.add_workflow(simple_workflow)
+    await state_manager.add_workflow(simple_workflow)
     for job in simple_workflow.jobs:
-        state_manager.add_job(job)
+        await state_manager.add_job(job)
 
     workflow_engine._dependency_cache[simple_workflow.id] = \
         workflow_engine._build_dependency_graph(simple_workflow)
@@ -381,11 +401,13 @@ def test_can_schedule_job(workflow_engine: WorkflowEngine,
     assert can_schedule is True
 
 
-def test_find_workflow_for_job(workflow_engine: WorkflowEngine,
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_find_workflow_for_job(workflow_engine: WorkflowEngine,
                                state_manager: StateManager,
                                simple_workflow: Workflow) -> None:
     """Test finding workflow containing a specific job"""
-    state_manager.add_workflow(simple_workflow)
+    await state_manager.add_workflow(simple_workflow)
 
     workflow = workflow_engine._find_workflow_for_job("job1")
     assert workflow is not None
@@ -395,15 +417,17 @@ def test_find_workflow_for_job(workflow_engine: WorkflowEngine,
     assert workflow is None
 
 
-def test_update_job_status(workflow_engine: WorkflowEngine,
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_update_job_status(workflow_engine: WorkflowEngine,
                            state_manager: StateManager,
                            simple_workflow: Workflow) -> None:
     """Test updating job status"""
-    state_manager.add_job(simple_workflow.jobs[0])
+    await state_manager.add_job(simple_workflow.jobs[0])
 
-    workflow_engine.update_job_status("job1", JobStatus.RUNNING.value)
+    await workflow_engine.update_job_status("job1", JobStatus.RUNNING.value)
 
-    job = state_manager.get_job("job1")
+    job = await state_manager.get_job("job1")
     assert job.status == JobStatus.RUNNING
 
 
@@ -412,6 +436,7 @@ def test_update_job_status(workflow_engine: WorkflowEngine,
 # ============================================================================
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_on_failure_jobs_marked_as_skipped(
         workflow_engine: WorkflowEngine, state_manager: StateManager) -> None:
@@ -444,9 +469,9 @@ async def test_on_failure_jobs_marked_as_skipped(
                         created_at=now,
                         updated_at=now)
 
-    state_manager.add_workflow(workflow)
+    await state_manager.add_workflow(workflow)
     for job in workflow.jobs:
-        state_manager.add_job(job)
+        await state_manager.add_job(job)
 
     # Mock scheduler to simulate successful assignment
     workflow_engine.scheduler.assign_job = AsyncMock(return_value="worker1")
@@ -463,7 +488,7 @@ async def test_on_failure_jobs_marked_as_skipped(
     assert "failure-handler" not in workflow.current_jobs
 
     # failure-handler should still be PENDING at this point
-    failure_job = state_manager.get_job("failure-handler")
+    failure_job = await state_manager.get_job("failure-handler")
     assert failure_job.status == JobStatus.PENDING
 
     # Complete success-handler
@@ -474,7 +499,7 @@ async def test_on_failure_jobs_marked_as_skipped(
     assert workflow.status == WorkflowStatus.COMPLETED
 
     # failure-handler should now be SKIPPED (not PENDING)
-    failure_job = state_manager.get_job("failure-handler")
+    failure_job = await state_manager.get_job("failure-handler")
     assert failure_job.status == JobStatus.SKIPPED
     assert "failure-handler" not in workflow.completed_jobs
     assert "failure-handler" not in workflow.failed_jobs

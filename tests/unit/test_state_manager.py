@@ -12,57 +12,57 @@ from shared.models import Workflow, Worker
 class TestStateManager:
     """Test StateManager operations"""
 
-    def test_add_workflow(self, state_manager: StateManager,
+    async def test_add_workflow(self, state_manager: StateManager,
                           workflow_factory: Callable[..., Workflow]) -> None:
         """Test adding a workflow"""
         workflow = workflow_factory(workflow_id="wf-1")
 
-        state_manager.add_workflow(workflow)
+        await state_manager.add_workflow(workflow)
 
-        assert state_manager.get_workflow("wf-1") == workflow
+        assert await state_manager.get_workflow("wf-1") == workflow
         assert len(state_manager.list_workflows()) == 1
 
-    def test_get_nonexistent_workflow(self,
+    async def test_get_nonexistent_workflow(self,
                                       state_manager: StateManager) -> None:
         """Test getting a workflow that doesn't exist"""
-        result = state_manager.get_workflow("nonexistent")
+        result = await state_manager.get_workflow("nonexistent")
 
         assert result is None
 
-    def test_remove_workflow(
+    async def test_remove_workflow(
             self, state_manager: StateManager,
             workflow_factory: Callable[..., Workflow]) -> None:
         """Test removing a workflow"""
         workflow = workflow_factory(workflow_id="wf-1")
-        state_manager.add_workflow(workflow)
+        await state_manager.add_workflow(workflow)
 
-        state_manager.remove_workflow("wf-1")
+        await state_manager.remove_workflow("wf-1")
 
-        assert state_manager.get_workflow("wf-1") is None
+        assert await state_manager.get_workflow("wf-1") is None
         assert len(state_manager.list_workflows()) == 0
 
-    def test_add_worker(self, state_manager: StateManager,
+    async def test_add_worker(self, state_manager: StateManager,
                         worker_factory: Callable[..., Worker]) -> None:
         """Test adding a worker"""
         worker = worker_factory(worker_id="worker-1")
 
-        state_manager.add_worker(worker)
+        await state_manager.add_worker(worker)
 
-        assert state_manager.get_worker("worker-1") == worker
+        assert await state_manager.get_worker("worker-1") == worker
         assert len(state_manager.list_workers()) == 1
 
-    def test_assign_job(self, state_manager: StateManager) -> None:
+    async def test_assign_job(self, state_manager: StateManager) -> None:
         """Test job assignment"""
-        state_manager.assign_job("job-1", "worker-1")
+        await state_manager.assign_job("job-1", "worker-1")
 
-        assert state_manager.get_job_worker("job-1") == "worker-1"
+        assert await state_manager.get_job_worker("job-1") == "worker-1"
 
-    def test_unassign_job(self, state_manager: StateManager) -> None:
+    async def test_unassign_job(self, state_manager: StateManager) -> None:
         """Test job unassignment"""
-        state_manager.assign_job("job-1", "worker-1")
-        state_manager.unassign_job("job-1")
+        await state_manager.assign_job("job-1", "worker-1")
+        await state_manager.unassign_job("job-1")
 
-        assert state_manager.get_job_worker("job-1") is None
+        assert await state_manager.get_job_worker("job-1") is None
 
     def test_list_workflows(self, populated_state: StateManager) -> None:
         """Test listing all workflows"""
@@ -83,26 +83,26 @@ class TestStateManager:
 class TestStateManagerConcurrency:
     """Test StateManager thread safety (if applicable)"""
 
-    def test_multiple_workflow_adds(
+    async def test_multiple_workflow_adds(
             self, state_manager: StateManager,
             workflow_factory: Callable[..., Workflow]) -> None:
         """Test adding multiple workflows"""
         workflows = [workflow_factory(workflow_id=f"wf-{i}") for i in range(5)]
 
         for wf in workflows:
-            state_manager.add_workflow(wf)
+            await state_manager.add_workflow(wf)
 
         assert len(state_manager.list_workflows()) == 5
 
-    def test_duplicate_workflow_id(
+    async def test_duplicate_workflow_id(
             self, state_manager: StateManager,
             workflow_factory: Callable[..., Workflow]) -> None:
         """Test handling duplicate workflow IDs"""
         wf1 = workflow_factory(workflow_id="wf-1", name="First")
         wf2 = workflow_factory(workflow_id="wf-1", name="Second")
 
-        state_manager.add_workflow(wf1)
-        state_manager.add_workflow(wf2)  # Should overwrite
+        await state_manager.add_workflow(wf1)
+        await state_manager.add_workflow(wf2)  # Should overwrite
 
-        result = state_manager.get_workflow("wf-1")
+        result = await state_manager.get_workflow("wf-1")
         assert result.name == "Second"

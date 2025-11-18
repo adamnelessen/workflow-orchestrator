@@ -1,4 +1,4 @@
-.PHONY: venv install clean test test-unit test-integration test-e2e test-e2e-up test-e2e-down test-e2e-logs test-cov test-watch lint run-coordinator run-worker docker-build docker-up docker-down docker-db-only db-init db-demo db-test db-reset fresh-start submit-workflow workflow-demo help
+.PHONY: venv install clean test test-unit test-integration test-db test-postgres test-redis test-persistence test-e2e test-e2e-up test-e2e-down test-e2e-logs test-cov test-watch lint run-coordinator run-worker docker-build docker-up docker-down docker-db-only db-init db-demo db-test db-reset fresh-start submit-workflow workflow-demo help
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -29,9 +29,10 @@ help:
 	@echo "  make docker-logs     - View Docker logs"
 	@echo ""
 	@echo "Testing:"
-	@echo "  make test            - Run all tests"
-	@echo "  make test-unit       - Run unit tests only"
+	@echo "  make test            - Run all tests (includes databases)"
+	@echo "  make test-unit       - Run unit tests only (fast, no databases)"
 	@echo "  make test-integration - Run integration tests only"
+	@echo "  make test-db         - Run database integration tests (PostgreSQL + Redis)"
 	@echo "  make test-e2e        - Run end-to-end tests"
 	@echo "  make test-cov        - Run tests with coverage report"
 	@echo "  make lint            - Run linters (ruff, mypy)"
@@ -70,21 +71,29 @@ clean:
 # Reinstall everything from scratch
 reinstall: clean install
 
-# Run all tests
-test:
+# Run all tests (includes integration tests with databases)
+test: install-dev docker-db-only
+	@echo "Running all tests (unit + integration + e2e)..."
+	@export DATABASE_URL=postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator && \
+	export REDIS_URL=redis://localhost:6379/1 && \
 	.venv/bin/pytest tests/ -v
 
-# Run unit tests only
-test-unit:
-	.venv/bin/pytest tests/unit/ -v -m unit
+# Run unit tests only (fast, no database required)
+test-unit: install-dev
+	@echo "Running unit tests only (no database required)..."
+	.venv/bin/pytest tests/unit/ -v
 
-# Run integration tests only
-test-integration:
-	.venv/bin/pytest tests/integration/ -v -m integration
+# Run integration tests only (requires databases)
+test-integration: install-dev docker-db-only
+	@echo "Running integration tests (requires databases)..."
+	@export DATABASE_URL=postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator && \
+	export REDIS_URL=redis://localhost:6379/1 && \
+	.venv/bin/pytest tests/integration/ -v
 
 # Run E2E tests (starts and stops docker environment)
-test-e2e:
-	.venv/bin/pytest tests/e2e/ -v -m e2e -s
+test-e2e: install-dev
+	@echo "Running end-to-end tests..."
+	.venv/bin/pytest tests/e2e/ -v -s
 
 # Start E2E test environment (without running tests)
 test-e2e-up:
@@ -99,7 +108,10 @@ test-e2e-logs:
 	docker-compose -f tests/e2e/docker-compose.e2e.yml logs -f
 
 # Run tests with coverage report
-test-cov:
+test-cov: install-dev docker-db-only
+	@echo "Running tests with coverage..."
+	@export DATABASE_URL=postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator && \
+	export REDIS_URL=redis://localhost:6379/1 && \
 	.venv/bin/pytest tests/ --cov=coordinator --cov=worker --cov=shared --cov=client --cov-report=html --cov-report=term
 
 # Run a single test file (usage: make test-file FILE=tests/unit/test_scheduler.py)
@@ -140,7 +152,7 @@ docker-db-only:
 # Initialize database schema
 db-init: install docker-db-only
 	@echo "Initializing database schema..."
-	@export DATABASE_URL=postgresql+asyncpg://workflow:workflow_dev@localhost:5432/workflow_orchestrator && \
+	@export DATABASE_URL=postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator && \
 	export REDIS_URL=redis://localhost:6379/0 && \
 	.venv/bin/python scripts/init_db.py
 	@echo "✅ Database initialization complete!"
@@ -148,13 +160,40 @@ db-init: install docker-db-only
 # Run database demo
 db-demo: db-init
 	@echo "Running database persistence demo..."
-	@export DATABASE_URL=postgresql+asyncpg://workflow:workflow_dev@localhost:5432/workflow_orchestrator && \
+	@export DATABASE_URL=postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator && \
 	export REDIS_URL=redis://localhost:6379/0 && \
 	.venv/bin/python examples/database_demo.py
 
 # Run database-specific tests
 db-test: install
 	.venv/bin/pytest tests/unit/test_state_manager_db.py -v
+
+# Run database integration tests (requires PostgreSQL + Redis)
+test-db: install-dev docker-db-only
+	@echo "Running database integration tests..."
+	@echo "Note: Tests require PostgreSQL and Redis to be running"
+	@export DATABASE_URL=postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator && \
+	export REDIS_URL=redis://localhost:6379/1 && \
+	.venv/bin/pytest tests/integration/test_postgres_integration.py tests/integration/test_redis_integration.py tests/integration/test_state_manager_persistence.py -v
+
+# Run PostgreSQL integration tests only
+test-postgres: install-dev docker-db-only
+	@echo "Running PostgreSQL integration tests..."
+	@export DATABASE_URL=postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator && \
+	.venv/bin/pytest tests/integration/test_postgres_integration.py -v
+
+# Run Redis integration tests only
+test-redis: install-dev docker-db-only
+	@echo "Running Redis integration tests..."
+	@export REDIS_URL=redis://localhost:6379/1 && \
+	.venv/bin/pytest tests/integration/test_redis_integration.py -v
+
+# Run StateManager persistence tests (full stack)
+test-persistence: install-dev docker-db-only
+	@echo "Running StateManager persistence tests..."
+	@export DATABASE_URL=postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator && \
+	export REDIS_URL=redis://localhost:6379/1 && \
+	.venv/bin/pytest tests/integration/test_state_manager_persistence.py -v -s
 
 # Reset databases (stop and remove volumes)
 db-reset:

@@ -11,26 +11,26 @@ from coordinator.core.workflow_engine import WorkflowEngine
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 
-def _get_workflow_or_404(workflow_id: str, state: StateManager) -> Workflow:
+async def _get_workflow_or_404(workflow_id: str, state: StateManager) -> Workflow:
     """Get a workflow by ID or raise 404 if not found"""
-    workflow = state.get_workflow(workflow_id)
+    workflow = await state.get_workflow(workflow_id)
     if workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
     return workflow
 
 
-def _ensure_workflow_not_exists(workflow_id: str, state: StateManager) -> None:
+async def _ensure_workflow_not_exists(workflow_id: str, state: StateManager) -> None:
     """Raise 400 if workflow already exists"""
-    if state.get_workflow(workflow_id) is not None:
+    if await state.get_workflow(workflow_id) is not None:
         raise HTTPException(status_code=400, detail="Workflow already exists")
 
 
-def _add_workflow_to_state(workflow: Workflow,
+async def _add_workflow_to_state(workflow: Workflow,
                            state: StateManager) -> Workflow:
     """Add workflow to state with timestamps set"""
     workflow.created_at = datetime.now(UTC)
     workflow.updated_at = datetime.now(UTC)
-    state.add_workflow(workflow)
+    await state.add_workflow(workflow)
     return workflow
 
 
@@ -38,8 +38,8 @@ def _add_workflow_to_state(workflow: Workflow,
 async def create_workflow(workflow: Workflow,
                           state: StateManager = Depends(state_manager)):
     """Create a new workflow"""
-    _ensure_workflow_not_exists(workflow.id, state)
-    return _add_workflow_to_state(workflow, state)
+    await _ensure_workflow_not_exists(workflow.id, state)
+    return await _add_workflow_to_state(workflow, state)
 
 
 @router.post("/from-yaml", response_model=Workflow)
@@ -72,12 +72,12 @@ async def create_workflow_from_yaml(
         raise HTTPException(status_code=400,
                             detail=f"Invalid workflow definition: {e}")
 
-    _ensure_workflow_not_exists(workflow.id, state)
+    await _ensure_workflow_not_exists(workflow.id, state)
 
     # Add workflow and all its jobs to state
-    _add_workflow_to_state(workflow, state)
+    await _add_workflow_to_state(workflow, state)
     for job in workflow.jobs:
-        state.add_job(job)
+        await state.add_job(job)
 
     return workflow
 
@@ -88,7 +88,7 @@ async def start_workflow(
     state: StateManager = Depends(state_manager),
     engine: WorkflowEngine = Depends(get_workflow_engine)):
     """Start a workflow execution"""
-    _get_workflow_or_404(workflow_id, state)
+    await _get_workflow_or_404(workflow_id, state)
 
     success = await engine.start_workflow(workflow_id)
     if not success:
@@ -103,7 +103,7 @@ async def cancel_workflow(
     state: StateManager = Depends(state_manager),
     engine: WorkflowEngine = Depends(get_workflow_engine)):
     """Cancel a running workflow"""
-    _get_workflow_or_404(workflow_id, state)
+    await _get_workflow_or_404(workflow_id, state)
 
     success = await engine.cancel_workflow(workflow_id)
     if not success:
@@ -123,13 +123,13 @@ async def list_workflows(state: StateManager = Depends(state_manager)):
 async def get_workflow(workflow_id: str,
                        state: StateManager = Depends(state_manager)):
     """Get a specific workflow"""
-    return _get_workflow_or_404(workflow_id, state)
+    return await _get_workflow_or_404(workflow_id, state)
 
 
 @router.delete("/{workflow_id}")
 async def delete_workflow(workflow_id: str,
                           state: StateManager = Depends(state_manager)):
     """Delete a workflow"""
-    _get_workflow_or_404(workflow_id, state)
-    state.remove_workflow(workflow_id)
+    await _get_workflow_or_404(workflow_id, state)
+    await state.remove_workflow(workflow_id)
     return {"message": "Workflow deleted"}

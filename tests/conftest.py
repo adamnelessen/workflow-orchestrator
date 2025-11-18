@@ -1,7 +1,8 @@
 """Root conftest.py - Shared fixtures for all tests"""
 import pytest
+import os
 from datetime import datetime, UTC
-from typing import Callable, Any
+from typing import Callable, Any, AsyncGenerator
 from unittest.mock import MagicMock, AsyncMock
 
 from coordinator.core.state_manager import StateManager
@@ -14,6 +15,59 @@ from shared.models import Job, Workflow, Worker
 
 # Note: pytest-asyncio handles event loop creation automatically
 # The custom event_loop fixture has been removed to avoid deprecation warnings
+
+# ============================================================================
+# Database Fixtures (for integration tests)
+# ============================================================================
+
+
+@pytest.fixture
+async def postgres_db() -> AsyncGenerator:
+    """Create a test database connection"""
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        pytest.skip("DATABASE_URL not set - skipping PostgreSQL tests")
+    
+    from coordinator.db.postgres import PostgresDB
+    db = PostgresDB(database_url)
+    await db.init_db()
+    yield db
+    await db.close()
+
+
+@pytest.fixture
+async def redis_cache() -> AsyncGenerator:
+    """Create a test Redis connection"""
+    redis_url = os.getenv("REDIS_URL")
+    if not redis_url:
+        pytest.skip("REDIS_URL not set - skipping Redis tests")
+    
+    from coordinator.db.redis import RedisCache
+    cache = RedisCache(redis_url)
+    await cache.connect()
+    yield cache
+    await cache.close()
+
+
+@pytest.fixture
+async def full_state_manager() -> AsyncGenerator:
+    """Create StateManager with full database stack"""
+    database_url = os.getenv("DATABASE_URL")
+    redis_url = os.getenv("REDIS_URL")
+    
+    if not (database_url and redis_url):
+        pytest.skip("DATABASE_URL or REDIS_URL not set - skipping full stack tests")
+    
+    from coordinator.core.state_manager import init_state_manager
+    state = await init_state_manager(database_url, redis_url)
+    yield state
+    
+    # Cleanup
+    if state.postgres:
+        await state.postgres.close()
+    if state.redis:
+        await state.redis.close()
+
 
 # ============================================================================
 # Data Factories
@@ -184,6 +238,7 @@ def branching_workflow() -> Workflow:
 @pytest.fixture
 def mock_worker(state_manager: StateManager) -> Worker:
     """Create a mock worker"""
+    import asyncio
     now = datetime.now(UTC)
     worker = Worker(
         id="worker1",
@@ -191,7 +246,14 @@ def mock_worker(state_manager: StateManager) -> Worker:
         capabilities=[JobType.VALIDATION, JobType.PROCESSING, JobType.CLEANUP],
         last_heartbeat=now,
         registered_at=now)
-    state_manager.add_worker(worker)
+    
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
+    loop.run_until_complete(state_manager.add_worker(worker))
     return worker
 
 
@@ -199,18 +261,30 @@ def mock_worker(state_manager: StateManager) -> Worker:
 def populated_state(state_manager: StateManager, workflow_factory: Callable,
                     worker_factory: Callable) -> StateManager:
     """StateManager with pre-populated test data"""
-    # Add workflows
-    workflow1 = workflow_factory(workflow_id="wf-1", name="Workflow 1")
-    workflow2 = workflow_factory(workflow_id="wf-2", name="Workflow 2")
-    state_manager.add_workflow(workflow1)
-    state_manager.add_workflow(workflow2)
+    # We need to run this asynchronously, but fixtures can't be async in this context
+    # So we'll use asyncio.get_event_loop().run_until_complete
+    import asyncio
+    
+    async def populate():
+        # Add workflows
+        workflow1 = workflow_factory(workflow_id="wf-1", name="Workflow 1")
+        workflow2 = workflow_factory(workflow_id="wf-2", name="Workflow 2")
+        await state_manager.add_workflow(workflow1)
+        await state_manager.add_workflow(workflow2)
 
-    # Add workers
-    worker1 = worker_factory(worker_id="worker-1", port=9001)
-    worker2 = worker_factory(worker_id="worker-2", port=9002)
-    state_manager.add_worker(worker1)
-    state_manager.add_worker(worker2)
-
+        # Add workers
+        worker1 = worker_factory(worker_id="worker-1", port=9001)
+        worker2 = worker_factory(worker_id="worker-2", port=9002)
+        await state_manager.add_worker(worker1)
+        await state_manager.add_worker(worker2)
+    
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
+    loop.run_until_complete(populate())
     return state_manager
 
 

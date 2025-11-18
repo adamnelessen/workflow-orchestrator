@@ -152,7 +152,7 @@ docker-compose up -d postgres redis
 python scripts/init_db.py
 
 # Run coordinator with databases
-export DATABASE_URL=postgresql+asyncpg://workflow:workflow_dev@localhost:5432/workflow_orchestrator
+export DATABASE_URL=postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator
 export REDIS_URL=redis://localhost:6379/0
 python -m coordinator.main
 ```

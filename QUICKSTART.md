@@ -93,7 +93,7 @@ make db-demo
 make docker-db-only
 
 # Run coordinator locally (in one terminal)
-export DATABASE_URL=postgresql+asyncpg://workflow:workflow_dev@localhost:5432/workflow_orchestrator
+export DATABASE_URL=postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator
 export REDIS_URL=redis://localhost:6379/0
 python -m coordinator.main
 

@@ -46,7 +46,7 @@ class TestScheduler:
         worker = worker_factory(worker_id="worker-1",
                                 capabilities=[JobType.VALIDATION],
                                 status=WorkerStatus.IDLE)
-        state_manager.add_worker(worker)
+        await state_manager.add_worker(worker)
         state_manager.active_connections["worker-1"] = mock_websocket
 
         # Assign job
@@ -54,7 +54,7 @@ class TestScheduler:
                                             {"test": "data"})
 
         assert result == "worker-1"
-        assert state_manager.get_job_worker("job-1") == "worker-1"
+        assert await state_manager.get_job_worker("job-1") == "worker-1"
         assert worker.status == WorkerStatus.BUSY
         assert worker.current_job_id == "job-1"
 
@@ -66,7 +66,7 @@ class TestScheduler:
         worker = worker_factory(worker_id="worker-1",
                                 capabilities=[JobType.PROCESSING],
                                 status=WorkerStatus.IDLE)
-        state_manager.add_worker(worker)
+        await state_manager.add_worker(worker)
 
         # Try to assign validation job
         result = await scheduler.assign_job("job-1", JobType.VALIDATION,
@@ -83,7 +83,7 @@ class TestScheduler:
             capabilities=[JobType.VALIDATION],
             status=WorkerStatus.BUSY  # Already busy
         )
-        state_manager.add_worker(worker)
+        await state_manager.add_worker(worker)
 
         result = await scheduler.assign_job("job-1", JobType.VALIDATION,
                                             {"test": "data"})
@@ -98,8 +98,8 @@ class TestScheduler:
         worker = worker_factory(worker_id="worker-1",
                                 status=WorkerStatus.BUSY,
                                 current_job_id="job-1")
-        state_manager.add_worker(worker)
-        state_manager.assign_job("job-1", "worker-1")
+        await state_manager.add_worker(worker)
+        await state_manager.assign_job("job-1", "worker-1")
 
         # Complete job
         await scheduler.handle_job_completion("worker-1", "job-1",
@@ -107,7 +107,7 @@ class TestScheduler:
 
         assert worker.status == WorkerStatus.IDLE
         assert worker.current_job_id is None
-        assert state_manager.get_job_worker("job-1") is None
+        assert await state_manager.get_job_worker("job-1") is None
 
     async def test_broadcast_message(self, scheduler: Scheduler,
                                      state_manager: StateManager,

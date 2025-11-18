@@ -55,7 +55,7 @@ class Scheduler:
 
         # Simple round-robin selection (can be improved with load balancing)
         worker_id = suitable_workers[0]
-        worker = self.state.get_worker(worker_id)
+        worker = await self.state.get_worker(worker_id)
 
         if worker is None:
             return None
@@ -63,7 +63,7 @@ class Scheduler:
         # Update worker status
         worker.status = "busy"
         worker.current_job_id = job_id
-        self.state.assign_job(job_id, worker_id)
+        await self.state.assign_job(job_id, worker_id)
 
         # Send job to worker
         message = JobAssignmentMessage(job_id=job_id,
@@ -80,17 +80,17 @@ class Scheduler:
             # Revert status if sending failed
             worker.status = "idle"
             worker.current_job_id = None
-            self.state.unassign_job(job_id)
+            await self.state.unassign_job(job_id)
             return None
 
     async def handle_job_completion(self, worker_id: str, job_id: str,
                                     result: dict):
         """Handle job completion from a worker."""
-        worker = self.state.get_worker(worker_id)
+        worker = await self.state.get_worker(worker_id)
         if worker is not None:
             worker.status = "idle"
             worker.current_job_id = None
 
-        self.state.unassign_job(job_id)
+        await self.state.unassign_job(job_id)
 
         logger.info(f"Job {job_id} completed by worker {worker_id}")

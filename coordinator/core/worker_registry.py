@@ -27,7 +27,7 @@ class WorkerRegistry:
         if worker_id in self.state.active_connections:
             del self.state.active_connections[worker_id]
 
-        self.state.remove_worker(worker_id)
+        await self.state.remove_worker(worker_id)
         logger.info(f"Worker {worker_id} disconnected")
 
         # Handle reassignment of jobs from disconnected worker
@@ -40,13 +40,13 @@ class WorkerRegistry:
                         capabilities=capabilities,
                         last_heartbeat=datetime.now(UTC),
                         registered_at=datetime.now(UTC))
-        self.state.add_worker(worker)
+        await self.state.add_worker(worker)
         logger.info(
             f"Worker {worker_id} registered with capabilities: {capabilities}")
 
     async def handle_heartbeat(self, worker_id: str):
         """Update worker's last heartbeat time."""
-        worker = self.state.get_worker(worker_id)
+        worker = await self.state.get_worker(worker_id)
         if worker is not None:
             worker.last_heartbeat = datetime.now(UTC)
 
@@ -88,10 +88,10 @@ class WorkerRegistry:
 
         for job_id in failed_jobs:
             # Unassign the job from the failed worker
-            self.state.unassign_job(job_id)
+            await self.state.unassign_job(job_id)
 
             # Get the job and reset its state for reassignment
-            job = self.state.get_job(job_id)
+            job = await self.state.get_job(job_id)
             if job:
                 # Clear worker assignment
                 job.worker_id = None

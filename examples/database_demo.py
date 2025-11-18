@@ -14,7 +14,7 @@ async def main():
     # Initialize state manager with PostgreSQL and Redis
     state = await init_state_manager(
         database_url=
-        "postgresql+asyncpg://workflow:workflow_dev@localhost:5432/workflow_orchestrator",
+        "postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator",
         redis_url="redis://localhost:6379/0")
 
     print("✅ Connected to PostgreSQL and Redis\n")

@@ -9,6 +9,7 @@ from shared.models import Workflow, Job
 from shared.enums import JobType, JobStatus, WorkflowStatus
 
 
+@pytest.mark.unit
 def test_parse_parallel_on_success():
     """Test that on_success can be a list of jobs"""
     now = datetime.now(UTC)
@@ -56,6 +57,7 @@ def test_parse_parallel_on_success():
     assert len(workflow.jobs[0].on_success) == 3
 
 
+@pytest.mark.unit
 def test_build_dependency_graph_parallel(workflow_engine: WorkflowEngine):
     """Test dependency graph building with parallel jobs"""
     now = datetime.now(UTC)
@@ -115,6 +117,7 @@ def test_build_dependency_graph_parallel(workflow_engine: WorkflowEngine):
     assert entry_jobs == ["split"]
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_parallel_job_scheduling(workflow_engine: WorkflowEngine,
                                        state_manager: StateManager):
@@ -146,9 +149,9 @@ async def test_parallel_job_scheduling(workflow_engine: WorkflowEngine,
                         created_at=now,
                         updated_at=now)
 
-    state_manager.add_workflow(workflow)
+    await state_manager.add_workflow(workflow)
     for job in workflow.jobs:
-        state_manager.add_job(job)
+        await state_manager.add_job(job)
 
     # Mock scheduler to simulate successful assignment
     workflow_engine.scheduler.assign_job = AsyncMock(return_value="worker1")
@@ -168,6 +171,7 @@ async def test_parallel_job_scheduling(workflow_engine: WorkflowEngine,
     assert workflow.jobs[2].status == JobStatus.RUNNING
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_aggregate_waits_for_all_parallel_jobs(
         workflow_engine: WorkflowEngine, state_manager: StateManager):
@@ -212,9 +216,9 @@ async def test_aggregate_waits_for_all_parallel_jobs(
                         created_at=now,
                         updated_at=now)
 
-    state_manager.add_workflow(workflow)
+    await state_manager.add_workflow(workflow)
     for job in workflow.jobs:
-        state_manager.add_job(job)
+        await state_manager.add_job(job)
 
     # Mock scheduler to simulate successful assignment
     workflow_engine.scheduler.assign_job = AsyncMock(return_value="worker1")
@@ -251,6 +255,7 @@ async def test_aggregate_waits_for_all_parallel_jobs(
     assert workflow.jobs[4].status == JobStatus.RUNNING
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_parallel_on_failure(workflow_engine: WorkflowEngine,
                                    state_manager: StateManager):
@@ -283,9 +288,9 @@ async def test_parallel_on_failure(workflow_engine: WorkflowEngine,
                         created_at=now,
                         updated_at=now)
 
-    state_manager.add_workflow(workflow)
+    await state_manager.add_workflow(workflow)
     for job in workflow.jobs:
-        state_manager.add_job(job)
+        await state_manager.add_job(job)
 
     # Mock scheduler to simulate successful assignment
     workflow_engine.scheduler.assign_job = AsyncMock(return_value="worker1")

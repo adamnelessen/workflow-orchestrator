@@ -8,7 +8,7 @@ from coordinator.core.state_manager import StateManager, state_manager
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
-def _get_workflow_and_job(workflow_id: str, job_id: str,
+async def _get_workflow_and_job(workflow_id: str, job_id: str,
                           state: StateManager) -> Tuple[Workflow, Job, int]:
     """Helper to get workflow and job with validation
     
@@ -18,7 +18,7 @@ def _get_workflow_and_job(workflow_id: str, job_id: str,
     Raises:
         HTTPException: If workflow or job not found
     """
-    workflow = state.get_workflow(workflow_id)
+    workflow = await state.get_workflow(workflow_id)
     if workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
@@ -47,7 +47,7 @@ async def get_job(workflow_id: str,
                   job_id: str,
                   state: StateManager = Depends(state_manager)):
     """Get a specific job from a workflow"""
-    _, job, _ = _get_workflow_and_job(workflow_id, job_id, state)
+    _, job, _ = await _get_workflow_and_job(workflow_id, job_id, state)
     return job
 
 
@@ -57,7 +57,7 @@ async def update_job(workflow_id: str,
                      job_update: Job,
                      state: StateManager = Depends(state_manager)):
     """Update a job's details"""
-    workflow, _, job_index = _get_workflow_and_job(workflow_id, job_id, state)
+    workflow, _, job_index = await _get_workflow_and_job(workflow_id, job_id, state)
 
     job_update.updated_at = datetime.now(UTC)
     workflow.jobs[job_index] = job_update

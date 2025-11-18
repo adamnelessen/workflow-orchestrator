@@ -1,95 +1,85 @@
 # Workflow Examples
 
-This directory contains example workflow definitions and scripts demonstrating how to use the Workflow Orchestrator client.
+Example workflows and Python client usage demonstrating the orchestrator's capabilities.
 
 ## Workflow Definitions
 
-The `workflow_definitions/` directory contains sample YAML workflow definitions:
+Located in `workflow_definitions/`:
 
-- **simple-workflow.yaml** - A basic two-step workflow with validation and processing
-- **data-processing-pipeline.yaml** - A more complex data processing workflow
-- **deployment-pipeline.yaml** - An example deployment workflow
+- **data-processing-pipeline.yaml**: Multi-stage data pipeline with validation, transformation, and error handling
+- **deployment-pipeline.yaml**: Deployment workflow with rollback capabilities
+- **parallel-processing.yaml**: Concurrent job execution example
 
-## Example Scripts
+## Python Scripts
 
 ### submit_workflow.py
 
-Demonstrates how to submit a single workflow from a YAML file and monitor its execution.
+Submit and monitor a single workflow:
 
 ```bash
-# Make sure the coordinator and workers are running first
 make submit-workflow
+# Or manually:
+python examples/submit_workflow.py examples/workflow_definitions/data-processing-pipeline.yaml
 ```
-
-This script:
-1. Submits the `simple-workflow.yaml` definition to the coordinator
-2. Starts the workflow immediately
-3. Monitors the workflow execution status
-4. Displays job completion details
 
 ### workflow_demo.py
 
-A comprehensive demonstration of workflow client operations.
+Comprehensive client API demonstration:
 
 ```bash
 make workflow-demo
 ```
 
-This script:
-1. Checks coordinator connectivity
-2. Submits all workflow definitions from `workflow_definitions/`
-3. Lists all workflows in the system
-4. Starts a specific workflow by name
-5. Monitors workflow execution
+Features:
+- Health checks
+- Bulk workflow submission
+- Workflow listing
+- Status monitoring
+- Start/cancel operations
 
-## Using the Client Programmatically
+## Client Usage
 
 ```python
 from client.workflow_client import WorkflowClient
 
-# Initialize client
-client = WorkflowClient(base_url="http://localhost:8000")
+client = WorkflowClient("http://localhost:8000")
 
-# Submit a workflow from YAML
-workflow = client.submit_workflow_from_yaml("path/to/workflow.yaml")
+# Submit from YAML
+workflow = client.submit_workflow_from_yaml("workflow.yaml")
 
-# Start the workflow
+# Start execution
 client.start_workflow(workflow.id)
 
-# Monitor workflow status
-workflow = client.get_workflow(workflow.id)
-print(f"Status: {workflow.status}")
+# Monitor status
+status = client.get_workflow(workflow.id)
+print(f"Status: {status.status}")
 
-# Or do both in one step
-workflow = client.submit_and_start_workflow("path/to/workflow.yaml")
+# Or combine operations
+workflow = client.submit_and_start_workflow("workflow.yaml")
 ```
 
-## Available Client Methods
+## Client Methods
 
-- `get_workers()` - List connected workers
-- `submit_workflow_from_yaml(yaml_path)` - Submit a workflow from a YAML file
-- `start_workflow(workflow_id)` - Start a workflow execution
-- `submit_and_start_workflow(yaml_path)` - Submit and start in one operation
-- `get_workflow(workflow_id)` - Get workflow details and status
-- `list_workflows()` - List all workflows
-- `cancel_workflow(workflow_id)` - Cancel a running workflow
-- `delete_workflow(workflow_id)` - Delete a workflow
+- `get_workers()`: List connected workers
+- `submit_workflow_from_yaml(path)`: Parse and submit YAML workflow
+- `start_workflow(workflow_id)`: Start workflow execution
+- `submit_and_start_workflow(path)`: Submit + start in one call
+- `get_workflow(workflow_id)`: Get workflow details
+- `list_workflows()`: List all workflows
+- `cancel_workflow(workflow_id)`: Cancel running workflow
+- `delete_workflow(workflow_id)`: Delete workflow
 
 ## Prerequisites
 
-Before running the examples:
+Ensure coordinator and workers are running:
 
-1. Start the coordinator:
-   ```bash
-   make run-coordinator
-   ```
+```bash
+# Docker (recommended)
+make docker-up
 
-2. Start one or more workers:
-   ```bash
-   make run-worker
-   ```
-
-3. Ensure all dependencies are installed:
-   ```bash
-   pip install -e .
-   ```
+# Or locally
+make install
+make docker-db-only
+python -m coordinator.main  # Terminal 1
+python -m worker.main       # Terminal 2
+```

@@ -1,4 +1,4 @@
-.PHONY: venv install clean test test-unit test-integration test-db test-postgres test-redis test-persistence test-e2e test-e2e-up test-e2e-down test-e2e-logs test-cov test-watch lint run-coordinator run-worker docker-build docker-up docker-down docker-db-only db-init db-demo db-test db-reset fresh-start submit-workflow workflow-demo help
+.PHONY: venv install clean test test-unit test-integration test-db test-postgres test-redis test-persistence test-e2e test-e2e-up test-e2e-down test-e2e-logs test-cov test-watch lint run-coordinator run-worker docker-build docker-up docker-down docker-db-only db-init db-demo db-test db-reset fresh-start submit-workflow workflow-demo quick-start help
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -8,38 +8,30 @@ help:
 	@echo "Workflow Orchestrator - Available Make Commands"
 	@echo "================================================"
 	@echo ""
-	@echo "Setup & Installation:"
-	@echo "  make install         - Install dependencies in virtual environment"
-	@echo "  make install-dev     - Install with development dependencies"
-	@echo "  make reinstall       - Clean and reinstall from scratch"
-	@echo "  make clean           - Remove virtual environment and cache files"
+	@echo "🚀 Quick Start (Run this first!):"
+	@echo "  make quick-start     - Start everything and submit a demo workflow"
 	@echo ""
-	@echo "Database Commands:"
-	@echo "  make db-init         - Setup databases and initialize schema"
-	@echo "  make db-demo         - Run database persistence demo"
-	@echo "  make db-test         - Run database-specific tests"
-	@echo "  make db-reset        - Stop databases and remove volumes"
-	@echo "  make docker-db-only  - Start only PostgreSQL + Redis"
-	@echo "  make fresh-start     - Complete fresh start (clean + setup + demo)"
-	@echo ""
-	@echo "Docker Commands:"
-	@echo "  make docker-build    - Build Docker images"
+	@echo "Core Commands:"
 	@echo "  make docker-up       - Start all services (coordinator + workers + databases)"
 	@echo "  make docker-down     - Stop all services"
+	@echo "  make submit-workflow - Submit example workflow (use WORKFLOW=file.yaml to specify)"
 	@echo "  make docker-logs     - View Docker logs"
 	@echo ""
 	@echo "Testing:"
-	@echo "  make test            - Run all tests (includes databases)"
+	@echo "  make test            - Run all tests"
 	@echo "  make test-unit       - Run unit tests only (fast, no databases)"
-	@echo "  make test-integration - Run integration tests only"
-	@echo "  make test-db         - Run database integration tests (PostgreSQL + Redis)"
+	@echo "  make test-integration - Run integration tests"
 	@echo "  make test-e2e        - Run end-to-end tests"
-	@echo "  make test-cov        - Run tests with coverage report"
 	@echo "  make lint            - Run linters (ruff, mypy)"
 	@echo ""
-	@echo "Examples:"
-	@echo "  make submit-workflow - Submit example workflow"
-	@echo "  make workflow-demo   - Run workflow demo"
+	@echo "Development:"
+	@echo "  make install         - Install dependencies"
+	@echo "  make install-dev     - Install with dev dependencies"
+	@echo "  make clean           - Remove virtual environment and cache files"
+	@echo "  make docker-db-only  - Start only PostgreSQL + Redis"
+	@echo "  make db-init         - Setup databases and initialize schema"
+	@echo ""
+	@echo "For more commands, see the Makefile"
 	@echo ""
 
 # Create virtual environment
@@ -56,6 +48,28 @@ install: venv
 install-dev: venv
 	.venv/bin/pip install --upgrade pip
 	.venv/bin/pip install -e ".[dev]"
+
+# 🚀 QUICK START - Everything you need to get running!
+quick-start: install
+	@echo "🚀 Starting Workflow Orchestrator..."
+	@echo ""
+	@echo "Step 1/3: Building and starting services..."
+	@docker-compose up -d --build
+	@echo ""
+	@echo "Step 2/3: Waiting for services to be ready..."
+	@sleep 8
+	@echo ""
+	@echo "Step 3/3: Submitting demo workflow..."
+	@sleep 2
+	@.venv/bin/python -m examples.submit_workflow data-processing-pipeline.yaml
+	@echo ""
+	@echo "✅ Quick start complete!"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  • View logs: make docker-logs"
+	@echo "  • Submit another workflow: make submit-workflow WORKFLOW=parallel-processing.yaml"
+	@echo "  • Stop services: make docker-down"
+	@echo ""
 
 # Clean up virtual environment and cache files
 clean:
@@ -215,7 +229,7 @@ fresh-start: clean docker-down
 	@echo ""
 	@echo "✅ All set! You can now:"
 	@echo "   - Run 'make docker-up' to start the full system"
-	@echo "   - Run 'make test' to run tests"
+	@echo "   - Run 'make submit-workflow' to submit an example workflow"
 	@echo "   - Check 'make help' for more commands"
 
 # Example workflow scripts (requires coordinator and workers to be running)

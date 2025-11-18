@@ -1,147 +1,93 @@
 # Database Integration Tests
 
-This directory contains comprehensive integration tests for PostgreSQL and Redis.
+Comprehensive PostgreSQL and Redis integration testing.
 
 ## Test Files
 
-### `test_postgres_integration.py`
-Tests PostgreSQL database operations:
-- Workflow CRUD operations
-- Job CRUD operations
-- Worker CRUD operations
-- Job assignment tracking
-- Data persistence and retrieval
+**`test_postgres_integration.py`**: PostgreSQL CRUD operations for workflows, jobs, workers, and job assignments
 
-### `test_redis_integration.py`
-Tests Redis caching operations:
-- Workflow and job caching
-- Cache invalidation
-- Job queue operations (push/pop with priority)
-- Worker heartbeat tracking
-- Distributed locks
-- Metrics tracking
+**`test_redis_integration.py`**: Redis caching, job queues, worker heartbeats, distributed locks, metrics
 
-### `test_state_manager_persistence.py`
-Tests full-stack StateManager with both databases:
-- Three-tier caching (memory → Redis → PostgreSQL)
-- Cache rebuild after coordinator restart
-- Data consistency across all storage layers
-- Cascading deletes
-- End-to-end persistence workflows
+**`test_state_manager_persistence.py`**: Full-stack StateManager with three-tier caching, cache rebuild after restart, data consistency
 
-## Running the Tests
+## Running Tests
 
 ### Prerequisites
 
-1. **PostgreSQL** must be running and accessible
-2. **Redis** must be running and accessible
-3. Set environment variables:
-   ```bash
-   export DATABASE_URL="postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator_test"
-   export REDIS_URL="redis://localhost:6379/1"
-   ```
-
-### Using Docker Compose (Recommended)
-
-Start test databases:
 ```bash
+# Start databases
 docker-compose up -d postgres redis
+
+# Set environment variables
+export DATABASE_URL="postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator_test"
+export REDIS_URL="redis://localhost:6379/1"
 ```
 
-### Run All Integration Tests
+### Run Tests
 
 ```bash
-# Run all integration tests
+# All integration tests
 pytest tests/integration/ -v
 
-# Run specific test file
+# Specific file
 pytest tests/integration/test_postgres_integration.py -v
 pytest tests/integration/test_redis_integration.py -v
 pytest tests/integration/test_state_manager_persistence.py -v
 
-# Run with coverage
-pytest tests/integration/ -v --cov=coordinator --cov-report=html
+# With coverage
+pytest tests/integration/ --cov=coordinator --cov-report=html
 ```
 
-### Run Without Databases
+**Auto-skip**: Tests automatically skip if `DATABASE_URL` or `REDIS_URL` not set.
 
-If databases are not available, tests will be **automatically skipped** with a clear message:
-```
-SKIPPED [1] tests/integration/test_postgres_integration.py:11: DATABASE_URL not set - skipping PostgreSQL tests
-```
+## Coverage
 
-## Test Coverage
+### PostgreSQL
+- Workflow CRUD and status updates
+- Job CRUD, status, and worker assignments
+- Worker CRUD and listing
+- Job assignment tracking
+- Data persistence and retrieval
 
-### PostgreSQL Tests Coverage
-- ✅ Save and retrieve workflows
-- ✅ Update workflow status
-- ✅ List all workflows
-- ✅ Delete workflows
-- ✅ Save and retrieve jobs
-- ✅ Update job status and assignments
-- ✅ Save and retrieve workers
-- ✅ List all workers
-- ✅ Delete workers
-- ✅ Job assignment CRUD operations
-- ✅ Multiple assignments tracking
+### Redis
+- Workflow/job caching and invalidation
+- Priority-based job queue (push/pop)
+- Worker heartbeat with TTL
+- Active/inactive worker tracking
+- Distributed locks (acquire/release)
+- Metric counters
+- Cache miss handling
 
-### Redis Tests Coverage
-- ✅ Cache workflow data
-- ✅ Cache job data
-- ✅ Cache invalidation
-- ✅ Job queue with priority ordering
-- ✅ Worker heartbeat with TTL expiration
-- ✅ Worker active/inactive tracking
-- ✅ Distributed lock acquire/release
-- ✅ Metric counters
-- ✅ Cache miss handling
-- ✅ Empty queue handling
+### StateManager Persistence
+- Three-tier caching (memory → Redis → PostgreSQL)
+- **Cache rebuild after coordinator restart** (critical resilience test)
+- Data consistency across storage layers
+- Cascading deletes
+- End-to-end persistence workflows
 
-### StateManager Tests Coverage
-- ✅ Workflow persistence to PostgreSQL
-- ✅ Workflow caching in Redis
-- ✅ Three-tier read path (memory → Redis → PostgreSQL)
-- ✅ **Cache rebuild after restart** (critical resilience test)
-- ✅ Worker persistence
-- ✅ Job assignment persistence
-- ✅ Cascading deletes across all layers
-- ✅ List operations after restart
-- ✅ Job update propagation
+## Key Test: Cache Rebuild
 
-## Key Test: Cache Rebuild After Restart
+`test_rebuild_from_db_after_restart()` validates:
+1. Data persisted to PostgreSQL
+2. StateManager instance closed (simulates crash)
+3. New StateManager starts fresh
+4. `init_state_manager()` calls `_rebuild_from_db()`
+5. All workflows/workers/assignments restored to memory
+6. System immediately operational
 
-The most critical test is `test_rebuild_from_db_after_restart()` which validates:
-
-1. Data is persisted to PostgreSQL
-2. First StateManager instance is closed (simulates crash)
-3. New StateManager instance starts fresh
-4. `init_state_manager()` automatically calls `_rebuild_from_db()`
-5. All workflows, workers, and job assignments are restored to memory
-6. System is immediately operational with full state
-
-This ensures **zero data loss** and **fast recovery** after coordinator restarts.
+Ensures **zero data loss** and **fast recovery**.
 
 ## Troubleshooting
 
-### Tests are skipped
-- Check that `DATABASE_URL` and `REDIS_URL` environment variables are set
-- Verify databases are running: `docker-compose ps`
+**Tests skipped**: Verify `DATABASE_URL` and `REDIS_URL` are set and databases are running
 
-### Connection errors
-- Check database connection strings
-- Ensure PostgreSQL is using `psycopg` driver: `postgresql+psycopg://...`
-- Test Redis connection: `redis-cli ping`
+**Connection errors**: Check connection strings, verify PostgreSQL uses `psycopg` driver
 
-### Test database isolation
-- Use separate database/Redis index for tests (e.g., Redis index 1 instead of 0)
-- Clean up test data between runs if needed
+**Test isolation**: Use separate database/Redis index for tests (e.g., Redis index 1)
 
 ## CI/CD Integration
 
-For automated testing in CI/CD pipelines:
-
 ```yaml
-# Example GitHub Actions workflow
 services:
   postgres:
     image: postgres:16

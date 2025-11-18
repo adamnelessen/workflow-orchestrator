@@ -1,256 +1,216 @@
 # Workflow Orchestrator
 
-A distributed workflow orchestration system with coordinator and worker components.
+Production-grade distributed workflow orchestration with coordinator-worker architecture, hybrid persistence, and WebSocket-based communication.
 
-## 🚀 Quick Start
-
-**New here?** Check out [QUICKSTART.md](QUICKSTART.md) for a step-by-step guide!
+## Quick Start
 
 ```bash
-# One command to get started
-make help
+# Start everything (coordinator + workers + databases)
+make quick-start
 
-# Setup with databases (recommended)
-make db-init
-
-# Or use the classic setup script
-./setup.sh
+# Or step by step
+make db-init          # Initialize databases
+make docker-up        # Start all services
+make submit-workflow  # Run example workflow
 ```
+
+See [QUICKSTART.md](QUICKSTART.md) for detailed guide.
+
+## Features
+
+- **Distributed Execution**: Coordinator schedules jobs across worker pool
+- **Hybrid Persistence**: Three-tier storage (memory → Redis → PostgreSQL)
+- **WebSocket Communication**: Real-time bidirectional messaging
+- **Resilient**: Automatic state recovery, worker failure handling
+- **YAML Workflows**: Define complex DAGs with conditional execution
+- **Observable**: REST API, metrics, comprehensive logging
+
+## Architecture
+
+- **Coordinator**: FastAPI service managing workflows, job scheduling, worker registry
+- **Workers**: Asynchronous job processors with capability-based routing
+- **Storage**: PostgreSQL (persistence), Redis (cache/coordination), Memory (hot path)
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design.
 
 ## Setup
 
-### Quick Start
+### Prerequisites
+- Python 3.11+
+- Docker & docker-compose (for databases)
+
+### Installation
 
 ```bash
-# Make setup script executable
-chmod +x setup.sh
-
-# Run setup
-./setup.sh
-```
-
-### Manual Setup
-
-```bash
-# Create virtual environment
-python3 -m venv .venv
-
-# Activate virtual environment
-source .venv/bin/activate  # On macOS/Linux
-# or
-.venv\Scripts\activate     # On Windows
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### Using Make
-
-```bash
-# Install dependencies
+# Install with databases
 make install
 
-# Clean and reinstall everything
-make reinstall
-
-# Clean up
-make clean
-```
-
-## Development
-
-### Install development dependencies
-
-```bash
-pip install -r requirements-dev.txt
-# or
+# Or development mode with test dependencies
 make install-dev
 ```
 
-### Running Tests
+### Run with Docker
 
 ```bash
-pytest tests/
-# or
-make test
-```
-
-### Linting
-
-```bash
-make lint
-```
-
-## Docker
-
-### Build and run with Docker Compose
-
-```bash
-# Build containers (includes PostgreSQL + Redis)
-make docker-build
-
-# Start services
+# Full stack (recommended)
 make docker-up
-
-# View logs
-make docker-logs
+docker-compose logs -f
 
 # Stop services
 make docker-down
 ```
 
-## Database Support
-
-The orchestrator now supports **PostgreSQL** for persistence and **Redis** for caching:
-
-- **PostgreSQL**: Persistent storage for workflows, jobs, and workers
-- **Redis**: Fast caching, job queues, and distributed coordination
-
-See [DATABASE_SETUP.md](DATABASE_SETUP.md) for detailed configuration.
-
-### Quick Start with Databases
+### Run Locally
 
 ```bash
-# Option 1: One-command setup (recommended)
-make db-init
-
-# Option 2: Run the demo to see persistence in action
-make db-demo
-
-# Option 3: Start everything (coordinator + workers + databases)
-make docker-up
-```
-
-### Database Commands
-
-```bash
-# Start only PostgreSQL + Redis (without coordinator/workers)
-make docker-db-only
-
-# Initialize database schema
-make db-init
-
-# Run database persistence demo
-make db-demo
-
-# Run database-specific tests
-make db-test
-```
-
-### Manual Database Setup
-
-If you prefer manual setup:
-
-```bash
-# Install dependencies
-pip install -e .
-
 # Start databases
 docker-compose up -d postgres redis
 
-# Initialize PostgreSQL schema and verify Redis
-python scripts/init_db.py
+# Initialize schema
+make db-init
 
-# Run coordinator with databases
+# Terminal 1: Coordinator
 export DATABASE_URL=postgresql+psycopg://workflow:workflow_dev@localhost:5432/workflow_orchestrator
 export REDIS_URL=redis://localhost:6379/0
 python -m coordinator.main
+
+# Terminal 2: Worker
+export COORDINATOR_URL=ws://localhost:8000/workers
+export WORKER_ID=worker-1
+python -m worker.main
 ```
 
-### Run Without Databases
+## Workflow Definition
 
-The system falls back to in-memory storage when database URLs are not set:
-
-```bash
-# No DATABASE_URL or REDIS_URL needed
-python -m coordinator.main
-```
-
-## Project Structure
-
-```
-workflow-orchestrator/
-├── coordinator/       # Coordinator service
-├── worker/           # Worker service
-├── shared/           # Shared schemas and utilities
-├── tests/            # Test files
-├── examples/         # Example workflows
-└── docker/           # Docker configurations
-```
-
-## Workflow Definitions
-
-### YAML Format
-
-Workflows can be defined using YAML files with the following structure:
+YAML format with conditional execution:
 
 ```yaml
 workflow:
-  name: "data-processing-pipeline"
+  name: "data-pipeline"
   jobs:
-    - id: "validate-input"
+    - id: "validate"
       type: "validation"
       parameters:
-        schema: "user-data"
-      on_success: "process-data"
-      on_failure: "send-error-notification"
+        schema: "input-schema"
+      on_success: "process"
+      on_failure: "alert"
     
-    - id: "process-data"
+    - id: "process"
       type: "processing"
       parameters:
         operation: "transform"
-      on_success: "save-results"
-      on_failure: "cleanup-temp-files"
+      on_success: "save"
     
-    - id: "save-results"
+    - id: "save"
       type: "integration"
       parameters:
         endpoint: "data-store"
     
-    - id: "send-error-notification"
+    - id: "alert"
       type: "integration"
       parameters:
-        recipient: "admin@company.com"
-    
-    - id: "cleanup-temp-files"
-      type: "cleanup"
-      parameters:
-        target: "temp-files"
+        channel: "slack-alerts"
       always_run: true
 ```
 
-### Field Reference
+### Job Types
+- `validation`: Input validation, schema checks
+- `processing`: Data transformation, computation
+- `integration`: External API calls, storage operations
+- `cleanup`: Resource cleanup, always-run tasks
 
-**Workflow fields:**
-- `name` (required): Human-readable workflow name
+Examples in `examples/workflow_definitions/`.
 
-**Job fields:**
-- `id` (required): Unique job identifier
-- `type` (required): Job type - one of: `validation`, `processing`, `integration`, `cleanup`
-- `parameters` (optional): Dictionary of job-specific parameters
-- `on_success` (optional): Job ID to run if this job succeeds
-- `on_failure` (optional): Job ID to run if this job fails
-- `always_run` (optional, default: false): Run this job regardless of workflow state
-- `max_retries` (optional, default: 3): Maximum number of retry attempts
+## API Usage
 
-### Control Flow
+### Submit Workflow
 
-Jobs support conditional execution through `on_success` and `on_failure` fields:
-- When a job completes successfully, the job specified in `on_success` is triggered
-- When a job fails, the job specified in `on_failure` is triggered
-- Jobs with `always_run: true` will execute even if the workflow has failed jobs
-
-### Loading Workflows
-
-**Via API:**
 ```bash
 curl -X POST http://localhost:8000/workflows/from-yaml \
   -H "Content-Type: text/plain" \
-  --data-binary @examples/workflow_definitions/data-processing-pipeline.yaml
+  --data-binary @workflow.yaml
 ```
 
-**Example workflows** are available in `examples/workflow_definitions/`:
-- `data-processing-pipeline.yaml` - Data validation and processing with error handling
-- `deployment-pipeline.yaml` - Multi-stage deployment with rollback
-- `simple-workflow.yaml` - Basic sequential workflow
+### Start Workflow
+
+```bash
+curl -X POST http://localhost:8000/workflows/{workflow_id}/start
+```
+
+### Get Status
+
+```bash
+curl http://localhost:8000/workflows/{workflow_id}
+```
+
+### Python Client
+
+```python
+from client.workflow_client import WorkflowClient
+
+client = WorkflowClient("http://localhost:8000")
+workflow = client.submit_and_start_workflow("workflow.yaml")
+print(f"Status: {workflow.status}")
+```
+
+## Database Commands
+
+```bash
+make db-init       # Initialize PostgreSQL schema + verify Redis
+make db-demo       # Run persistence demo
+make db-test       # Run database integration tests
+make docker-db-only # Start only databases (no services)
+```
+
+**Fallback**: System runs in-memory mode when database URLs not set.
+
+## Testing
+
+```bash
+make test              # All tests
+make test-unit         # Unit tests
+make test-integration  # API + database tests
+make test-e2e          # Full-stack Docker tests (40+ scenarios)
+```
+
+See `tests/README.md` for details.
+
+## Project Structure
+
+```
+coordinator/       # Coordinator service
+├── api/          # REST endpoints
+├── core/         # State manager, scheduler, workflow engine
+├── db/           # PostgreSQL + Redis clients
+└── utils/        # YAML parser
+
+worker/           # Worker service
+└── jobs/         # Job type implementations
+
+shared/           # Common models, enums, messages
+client/           # Python SDK
+tests/
+├── unit/         # Component tests
+├── integration/  # API + DB tests
+└── e2e/          # Full-stack Docker tests
+
+examples/
+└── workflow_definitions/  # Example YAML workflows
+```
+
+## Development
+
+```bash
+make help          # Show all commands
+make lint          # Run linters
+make clean         # Clean build artifacts
+make reinstall     # Fresh install
+```
+
+## Documentation
+
+- **QUICKSTART.md**: Step-by-step getting started
+- **ARCHITECTURE.md**: System design and components
+- **tests/README.md**: Testing infrastructure
+- **examples/README.md**: Example usage patterns
 

@@ -1,4 +1,4 @@
-"""Sample client to interact with the Northwood Workflow Orchestration System."""
+"""Sample client to interact with the Workflow Orchestration System."""
 import requests
 import time
 from pathlib import Path
